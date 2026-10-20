@@ -1,20 +1,13 @@
-import styled from '@emotion/styled';
+import styled from "@emotion/styled";
 
-const assets = import.meta.glob<string>('../aasets/*.svg', {
+const assets = import.meta.glob<string>("../assets/*.svg", {
   eager: true,
-  query: '?url',
-  import: 'default',
+  query: "?url",
+  import: "default",
 });
 
 const variants = {
-  search: 104,
-  sidebar: 105,
-  newChat: 106,
-  clock: 107,
-  books: 108,
   more: 109,
-  caret: 110,
-  sun: 111,
   plus: 112,
   inputCaret: 113,
   microphone: 114,
@@ -48,26 +41,26 @@ const variants = {
 
 export type IconName = keyof typeof variants;
 type IconProps = { name: IconName };
-type LogoProps = { size?: 'button' | 'status' | 'editor' | 'comparison' };
+type LogoProps = { size?: "button" | "status" | "editor" | "comparison" };
 
-const Image = styled.img`
+const Image = styled.img<{ flip?: boolean }>`
   display: block;
   flex-shrink: 0;
+  transform: ${({ flip }) => flip ? 'rotate(180deg)' : 'none'};
 `;
 
 export function Icon({ name }: IconProps) {
-  return <Image
-    src={assets[`../aasets/icon-${variants[name]}.svg`]}
-    alt=""
-    aria-hidden="true"
-  />;
+  return (
+    <Image
+      src={assets[`../assets/icon-${variants[name]}.svg`]}
+      flip={name === 'inputCaret' || name === 'arrowUp' || name === 'microphone'}
+      alt=""
+      aria-hidden="true"
+    />
+  );
 }
 
-export function Logo({ size = 'button' }: LogoProps) {
+export function Logo({ size = "button" }: LogoProps) {
   const variant = { button: 11, status: 10, editor: 12, comparison: 13 }[size];
-  return <Image
-    src={assets[`../aasets/logo-${variant}.svg`]}
-    alt="Eveil"
-  />;
+  return <Image src={assets[`../assets/logo-${variant}.svg`]} alt="Eveil" />;
 }
-
