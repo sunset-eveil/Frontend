@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Eveil",
+  "version": "0.0.1",
+  "description": "Eveil Chrome extension",
+  "action": {
+    "default_title": "Eveil",
+    "default_popup": "index.html"
+  }
+}
