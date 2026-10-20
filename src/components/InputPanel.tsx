@@ -51,6 +51,10 @@ const Header = styled.header`
 const LogoArea = styled.div`
   flex: 1;
   min-width: 50px;
+
+  @media (max-width: 560px) {
+    display: none;
+  }
 `;
 
 const Divider = styled.span`
@@ -58,6 +62,10 @@ const Divider = styled.span`
   height: 18px;
   margin: 0 2px;
   background: ${colors.divider};
+
+  @media (max-width: 560px) {
+    display: none;
+  }
 `;
 
 const Tabs = styled.div`

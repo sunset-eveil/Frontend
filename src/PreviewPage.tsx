@@ -1,233 +1,92 @@
-import { useEffect, useState } from 'react';
-import styled from '@emotion/styled';
-import { ComparisonPanel } from './components/ComparisonPanel';
-import { EveilButton } from './components/EveilButton';
-import { Icon, type IconName, Logo } from './components/Icon';
-import { InputPanel } from './components/InputPanel';
-import { MaskTypeItem } from './components/MaskTypeItem';
-import { MaskChip, PrivacyHighlight } from './components/PrivacyText';
-import { colors } from './styles/colors';
+import { useEffect, useState } from "react";
+import styled from "@emotion/styled";
+import bgImage from "./assets/bg.png";
+import { ComparisonPanel } from "./components/ComparisonPanel";
+import { EveilButton } from "./components/EveilButton";
+import { Icon, type IconName } from "./components/Icon";
+import { InputPanel } from "./components/InputPanel";
+import { MaskTypeItem } from "./components/MaskTypeItem";
+import { MaskChip, PrivacyHighlight } from "./components/PrivacyText";
+import {
+  EXAMPLE_TEXT,
+  MASK_DEFINITIONS,
+  type ManualMask,
+  type MaskDefinition,
+} from "./masking";
+import { colors } from "./styles/colors";
 
-type Screen = 'button' | 'chat' | 'comparison';
-type MaskType = {
-  label: string;
-  icon: IconName;
-  chip: IconName;
-  value: string;
-};
-type NavigationItem = {
-  icon: IconName;
-  label: string;
-};
+type Screen = "button" | "chat" | "comparison";
 type Suggestion = {
   icon: IconName;
   label: string;
 };
+type MaskSegment = {
+  start: number;
+  end: number;
+  definition: MaskDefinition;
+  manual?: ManualMask;
+};
 
 const Page = styled.main`
   display: flex;
-  min-width: 1024px;
-  min-height: 100dvh;
-  overflow: hidden;
-  color: ${colors.chatText};
-  background: ${colors.background};
-`;
-
-const Sidebar = styled.aside`
-  display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  gap: 4px;
-  width: 260px;
-  min-height: 100dvh;
-  padding: 14px 10px;
-  border-right: 1px solid ${colors.sidebarBorder};
-  background: ${colors.sidebar};
-`;
-
-const SidebarHeader = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 10px 14px;
-`;
-
-const SidebarTitle = styled.strong`
-  color: ${colors.heading};
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 31px;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 14px;
-`;
-
-const NavigationButton = styled.button<{ selected?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 10px;
   width: 100%;
-  height: 45px;
-  padding: 10px;
-  border: 0;
-  border-radius: 10px;
+  min-height: 100dvh;
+  overflow-x: hidden;
   color: ${colors.chatText};
-  background: ${({ selected }) => selected ? colors.chatSelected : 'transparent'};
-  font-size: 16px;
-`;
-
-const SectionLabel = styled.span`
-  padding: 22px 10px 8px;
-  color: ${colors.chatMuted};
-  font-size: 14px;
-  line-height: 21.7px;
-`;
-
-const RecentItem = styled.button`
-  width: 100%;
-  padding: 10px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 8px;
-  color: ${colors.chatText};
-  background: transparent;
-  font-size: 14px;
-  line-height: 21.7px;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &:hover {
-    background: ${colors.chatSelected};
-  }
-`;
-
-const Account = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: auto;
-  padding: 12px 10px 4px;
-  border-top: 1px solid ${colors.sidebarBorder};
-`;
-
-const Avatar = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: ${colors.heading};
-  background: ${colors.avatar};
-  font-size: 12px;
-  font-weight: 700;
-`;
-
-const AccountName = styled.div`
-  color: ${colors.heading};
-  font-size: 14px;
-`;
-
-const AccountPlan = styled.div`
-  margin-top: 2px;
-  color: ${colors.chatMuted};
-  font-size: 12px;
+  background-color: ${colors.background};
+  background-image: url(${bgImage});
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
 `;
 
 const Content = styled.section`
   position: relative;
   display: flex;
-  flex: 1;
+  flex: 0 0 86.46%;
   flex-direction: column;
   min-width: 0;
   min-height: 100dvh;
-`;
+  margin-left: 13.54%;
 
-const Topbar = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 20px;
-`;
-
-const Model = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: ${colors.heading};
-  font-size: 18px;
-  font-weight: 600;
-`;
-
-const TopbarActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const RoundButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid ${colors.sidebarBorder};
-  border-radius: 50%;
-  background: transparent;
-`;
-
-const Protection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 10px 0 8px;
-  border: 1px solid ${colors.border};
-  border-radius: 999px;
-  color: ${colors.secondary};
-  background: ${colors.surface};
-  font-size: 14px;
-`;
-
-const Indicator = styled.span`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${colors.indicator};
-  box-shadow: 0 0 8px ${colors.active};
+  @media (max-width: 760px) {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
 `;
 
 const Workspace = styled.div`
   display: flex;
-  flex: 1;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 0 24px 8vh;
+  min-height: 100dvh;
+  padding: 38vh 24px 8vh;
+
+  @media (max-width: 520px) {
+    padding: 38vh 12px 6vh;
+  }
 `;
 
-const Heading = styled.h1<{ $chatOpen: boolean }>`
-  margin: 0 0 ${({ $chatOpen }) => $chatOpen ? '10px' : '28px'};
+const Heading = styled.h1`
+  margin: 0 0 28px;
+  padding: 2px 12px;
   color: ${colors.heading};
-  font-size: 30px;
+  background: ${colors.background};
+  font-size: clamp(24px, 2.5vw, 30px);
   font-weight: 500;
   line-height: 33.6px;
   letter-spacing: -0.3px;
 `;
 
-const PromptArea = styled.div`
-  width: min(760px, calc(100vw - 340px));
+const WorkspaceContent = styled.div`
+  width: min(760px, 100%);
 `;
 
 const Prompt = styled.div`
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   height: 58px;
   padding: 0 10px 0 16px;
@@ -236,26 +95,34 @@ const Prompt = styled.div`
   background: ${colors.chatInput};
 `;
 
-const PromptText = styled.span`
+const PromptInput = styled.input`
   flex: 1;
-  margin-left: 10px;
-  color: ${colors.chatMuted};
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: ${colors.text};
+  background: transparent;
   font-size: 16px;
+
+  &::placeholder {
+    color: ${colors.chatMuted};
+    opacity: 1;
+  }
 `;
 
 const PromptMode = styled.span`
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 0 10px;
+  margin: 0;
   color: ${colors.chatText};
   font-size: 16px;
 `;
 
 const EveilSlot = styled.div`
-  position: absolute;
-  right: 94px;
-  z-index: 2;
+  width: 74px;
+  height: 36px;
 `;
 
 const SendButton = styled.button`
@@ -264,7 +131,7 @@ const SendButton = styled.button`
   justify-content: center;
   width: 40px;
   height: 40px;
-  padding: 0;
+  padding: 6px;
   border: 0;
   border-radius: 50%;
   background: ${colors.chatButton};
@@ -295,159 +162,230 @@ const SuggestionButton = styled.button`
   }
 `;
 
-const example = '이력서 자기소개 부분 좀 다듬어 줘.\n저는 김민지이고 010-2345-6789, minji.kim@mail.com 으로 연락받고 있어요.\n주소는 서울 마포구 월드컵로 12 이고, 희망 연봉은 4,200만원이야.';
-const navigation: NavigationItem[] = [
-  { icon: 'clock', label: '예약' },
-  { icon: 'books', label: '라이브러리' },
-  { icon: 'more', label: '탐색' },
-];
-const recent = [
-  '이력서 자기소개 다듬기',
-  '이사 체크리스트',
-  '보험 청구 서류 문의',
-  '제주 여행 일정 짜기',
-  '영어 이메일 번역',
-];
 const suggestions: Suggestion[] = [
-  { icon: 'file', label: '이력서 자기소개 부분 다듬어 줘' },
-  { icon: 'package', label: '010-5821-3304로 온 택배 문자가 진짜인지 봐줘' },
-  { icon: 'firstAid', label: '주민번호 950412-2123456으로 보험 청구하는 방법 알려줘' },
+  { icon: "file", label: "이력서 자기소개 부분 다듬어 줘" },
+  { icon: "package", label: "010-5821-3304로 온 택배 문자가 진짜인지 봐줘" },
+  {
+    icon: "firstAid",
+    label: "주민번호 950412-2123456으로 보험 청구하는 방법 알려줘",
+  },
 ];
-const types: MaskType[] = [
-  { label: '이름', icon: 'user', chip: 'userChip', value: '김민지' },
-  { label: '전화번호', icon: 'phone', chip: 'phoneChip', value: '010-2345-6789' },
-  { label: '이메일', icon: 'email', chip: 'emailChip', value: 'minji.kim@mail.com' },
-  { label: '주민등록번호', icon: 'id', chip: 'id', value: '' },
-  { label: '계좌·카드번호', icon: 'card', chip: 'card', value: '' },
-  { label: '주소', icon: 'pin', chip: 'pinChip', value: '서울 마포구 월드컵로 12' },
-  { label: '금액', icon: 'coins', chip: 'coinsChip', value: '4,200만원' },
-];
-
 export function PreviewPage() {
-  const [screen, setScreen] = useState<Screen>('button');
+  const [screen, setScreen] = useState<Screen>("button");
   const [showHint, setShowHint] = useState(
-    () => localStorage.getItem('eveil-hint-shown') !== 'true',
+    () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
-  const [value, setValue] = useState(example);
-  const [view, setView] = useState<'original' | 'masked'>('original');
-  const [enabled, setEnabled] = useState(types.map(() => true));
+  const [value, setValue] = useState("");
+  const [view, setView] = useState<"original" | "masked">("original");
+  const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
+  const [manualMasks, setManualMasks] = useState<ManualMask[]>([]);
 
   useEffect(() => {
     if (showHint) {
-      localStorage.setItem('eveil-hint-shown', 'true');
+      localStorage.setItem("eveil-hint-shown", "true");
     }
   }, [showHint]);
 
-  const isExample = value === example;
-  const count = isExample
-    ? types.filter((type, index) => type.value && enabled[index]).length
+  const isExample = value === EXAMPLE_TEXT;
+  const autoCount = isExample
+    ? MASK_DEFINITIONS.reduce(
+        (total, definition, index) =>
+          enabled[index] ? total + definition.values.length : total,
+        0,
+      )
     : 0;
-  const content = (masked: boolean) => isExample
-    ? example.split(/(김민지|010-2345-6789|minji\.kim@mail\.com|서울 마포구 월드컵로 12|4,200만원)/)
-      .map((part, index) => {
-        const typeIndex = types.findIndex(type => type.value === part);
+  const count = autoCount + manualMasks.length;
 
-        if (typeIndex < 0 || !enabled[typeIndex]) {
-          return part;
-        }
+  const removeManualMask = (id: string) => {
+    setManualMasks((previous) => previous.filter((mask) => mask.id !== id));
+  };
 
-        return masked
-          ? <MaskChip key={index} icon={types[typeIndex].chip}>{types[typeIndex].label}_1</MaskChip>
-          : <PrivacyHighlight key={index}>{part}</PrivacyHighlight>;
-      })
-    : value;
+  const addManualMask = (mask: Omit<ManualMask, "id" | "label">) => {
+    const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
 
-  return <Page>
-    <Sidebar>
-      <SidebarHeader>
-        <SidebarTitle>ChatGPT</SidebarTitle>
-        <HeaderActions>
-          <Icon name="search" />
-          <Icon name="sidebar" />
-        </HeaderActions>
-      </SidebarHeader>
-      <NavigationButton selected><Icon name="newChat" />새 채팅</NavigationButton>
-      {navigation.map(item => <NavigationButton key={item.label}>
-        <Icon name={item.icon} />{item.label}
-      </NavigationButton>)}
-      <SectionLabel>최근</SectionLabel>
-      {recent.map(item => <RecentItem key={item}>{item}</RecentItem>)}
-      <Account>
-        <Avatar>MJ</Avatar>
-        <div>
-          <AccountName>김민지</AccountName>
-          <AccountPlan>Plus</AccountPlan>
-        </div>
-      </Account>
-    </Sidebar>
-    <Content>
-      <Topbar>
-        <Model>ChatGPT <Icon name="caret" /></Model>
-        <TopbarActions>
-          <RoundButton type="button" aria-label="테마"><Icon name="sun" /></RoundButton>
-          <Protection>
-            <Logo size="status" />
-            보호 중
-            <Indicator />
-          </Protection>
-        </TopbarActions>
-      </Topbar>
-      <Workspace>
-        <Heading $chatOpen={screen === 'chat'}>준비되면 시작하세요.</Heading>
-        {screen === 'button' && <PromptArea>
-          <Prompt>
-            <Icon name="plus" />
-            <PromptText>ChatGPT에게 물어보세요</PromptText>
-            <EveilSlot>
-              <EveilButton
-                onClick={() => {
-                  setScreen('chat');
-                  setShowHint(false);
-                }}
-                showHint={showHint}
-                onDismissHint={() => setShowHint(false)}
-              />
-            </EveilSlot>
-            <PromptMode>Instant <Icon name="inputCaret" /></PromptMode>
-            <Icon name="microphone" />
-            <SendButton type="button" aria-label="전송"><Icon name="arrowUp" /></SendButton>
-          </Prompt>
-          <Suggestions>
-            {suggestions.map(item => <SuggestionButton key={item.label}>
-              <Icon name={item.icon} />{item.label}
-            </SuggestionButton>)}
-          </Suggestions>
-        </PromptArea>}
-        {screen === 'chat' && <InputPanel
-          value={value}
-          onChange={setValue}
-          view={view}
-          onViewChange={setView}
-          originalContent={isExample ? content(false) : undefined}
-          maskedContent={content(true)}
+    if (!definition) {
+      return;
+    }
+
+    setManualMasks((previous) => {
+      const remaining = previous.filter(
+        (item) => item.end <= mask.start || item.start >= mask.end,
+      );
+      const sequence =
+        remaining.filter((item) => item.type === mask.type).length + 1;
+
+      return [
+        ...remaining,
+        {
+          ...mask,
+          id: `manual-${Date.now()}`,
+          label: `${definition.label}_${sequence}`,
+        },
+      ];
+    });
+  };
+
+  const content = (masked: boolean) => {
+    if (!isExample) {
+      return value;
+    }
+
+    const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
+      enabled[definitionIndex]
+        ? definition.values.flatMap((valueToMask) => {
+            const segments: MaskSegment[] = [];
+            let start = value.indexOf(valueToMask);
+
+            while (start >= 0) {
+              segments.push({
+                start,
+                end: start + valueToMask.length,
+                definition,
+              });
+              start = value.indexOf(valueToMask, start + valueToMask.length);
+            }
+
+            return segments;
+          })
+        : [],
+    );
+    const manual = manualMasks.flatMap((mask) => {
+      const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
+
+      return definition
+        ? [{ start: mask.start, end: mask.end, definition, manual: mask }]
+        : [];
+    });
+    const segments = [
+      ...automatic.filter(
+        (segment) =>
+          !manual.some(
+            (item) => segment.start < item.end && segment.end > item.start,
+          ),
+      ),
+      ...manual,
+    ].sort((first, second) => first.start - second.start);
+    const result = [];
+    let cursor = 0;
+
+    segments.forEach((segment, index) => {
+      if (segment.start > cursor) {
+        result.push(value.slice(cursor, segment.start));
+      }
+
+      const text = value.slice(segment.start, segment.end);
+      const manualId = segment.manual?.id;
+      result.push(
+        masked ? (
+          <MaskChip
+            key={`mask-${index}`}
+            icon={segment.definition.chip}
+            onClick={manualId ? () => removeManualMask(manualId) : undefined}
+          >
+            {segment.manual?.label ?? `${segment.definition.label}_1`}
+          </MaskChip>
+        ) : (
+          <PrivacyHighlight key={`mask-${index}`}>{text}</PrivacyHighlight>
+        ),
+      );
+      cursor = segment.end;
+    });
+
+    if (cursor < value.length) {
+      result.push(value.slice(cursor));
+    }
+
+    return result;
+  };
+
+  return (
+    <Page>
+      <Content>
+        <Workspace>
+          <Heading>준비되면 시작하세요.</Heading>
+          {screen === "button" && (
+            <WorkspaceContent>
+              <Prompt>
+                <Icon name="plus" />
+                <PromptInput
+                  aria-label="ChatGPT 메시지 입력"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  placeholder="ChatGPT에게 물어보세요"
+                />
+                <EveilSlot>
+                  <EveilButton
+                    onClick={() => {
+                      setScreen("chat");
+                      setShowHint(false);
+                    }}
+                    showHint={showHint}
+                    onDismissHint={() => setShowHint(false)}
+                  />
+                </EveilSlot>
+                <PromptMode>
+                  Instant <Icon name="inputCaret" />
+                </PromptMode>
+                <Icon name="microphone" />
+                <SendButton type="button" aria-label="전송">
+                  <Icon name="arrowUp" />
+                </SendButton>
+              </Prompt>
+              <Suggestions>
+                {suggestions.map((item) => (
+                  <SuggestionButton key={item.label}>
+                    <Icon name={item.icon} />
+                    {item.label}
+                  </SuggestionButton>
+                ))}
+              </Suggestions>
+            </WorkspaceContent>
+          )}
+          {screen === "chat" && (
+            <InputPanel
+              value={value}
+              onChange={setValue}
+              view={view}
+              onViewChange={setView}
+              originalContent={isExample ? content(false) : undefined}
+              maskedContent={content(true)}
+              count={count}
+              onClose={() => setScreen("button")}
+              onExpand={() => setScreen("comparison")}
+              onSettings={() => setScreen("comparison")}
+            />
+          )}
+        </Workspace>
+      </Content>
+      {screen === "comparison" && (
+        <ComparisonPanel
+          original={content(false)}
+          masked={content(true)}
           count={count}
-          onClose={() => setScreen('button')}
-          onExpand={() => setScreen('comparison')}
-          onSettings={() => setScreen('comparison')}
-        />}
-      </Workspace>
-    </Content>
-    {screen === 'comparison' && <ComparisonPanel
-      original={content(false)}
-      masked={content(true)}
-      count={count}
-      onClose={() => setScreen('chat')}
-      onCollapse={() => setScreen('chat')}
-      types={types.map((type, index) => <MaskTypeItem
-        key={type.label}
-        label={type.label}
-        icon={type.icon}
-        count={isExample && type.value ? 1 : 0}
-        checked={enabled[index]}
-        onChange={checked => setEnabled(previous => previous.map((item, itemIndex) => (
-          itemIndex === index ? checked : item
-        )))}
-      />)}
-    />}
-  </Page>;
+          maskOptions={MASK_DEFINITIONS}
+          manualMasks={manualMasks}
+          onClose={() => setScreen("chat")}
+          onCollapse={() => setScreen("chat")}
+          onAddManualMask={addManualMask}
+          onRemoveManualMask={removeManualMask}
+          types={MASK_DEFINITIONS.map((definition, index) => (
+            <MaskTypeItem
+              key={definition.id}
+              label={definition.label}
+              icon={definition.icon}
+              count={isExample ? definition.values.length : 0}
+              checked={enabled[index]}
+              onChange={(checked) =>
+                setEnabled((previous) =>
+                  previous.map((item, itemIndex) =>
+                    itemIndex === index ? checked : item,
+                  ),
+                )
+              }
+            />
+          ))}
+        />
+      )}
+    </Page>
+  );
 }
