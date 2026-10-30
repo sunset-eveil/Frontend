@@ -8,7 +8,6 @@ import { InputPanel } from "./components/InputPanel";
 import { MaskTypeItem } from "./components/MaskTypeItem";
 import { MaskChip, PrivacyHighlight } from "./components/PrivacyText";
 import {
-  EXAMPLE_TEXT,
   MASK_DEFINITIONS,
   type ManualMask,
   type MaskDefinition,
@@ -16,6 +15,10 @@ import {
 import { colors } from "./styles/colors";
 
 type Screen = "button" | "chat" | "comparison";
+type TextCaret = {
+  start: number;
+  end: number;
+};
 type Suggestion = {
   icon: IconName;
   label: string;
@@ -170,12 +173,18 @@ const suggestions: Suggestion[] = [
     label: "주민번호 950412-2123456으로 보험 청구하는 방법 알려줘",
   },
 ];
+
+function countOccurrences(text: string, query: string) {
+  return text.split(query).length - 1;
+}
+
 export function PreviewPage() {
   const [screen, setScreen] = useState<Screen>("button");
   const [showHint, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
   const [value, setValue] = useState("");
+  const [caret, setCaret] = useState<TextCaret>({ start: 0, end: 0 });
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
   const [manualMasks, setManualMasks] = useState<ManualMask[]>([]);
@@ -186,15 +195,26 @@ export function PreviewPage() {
     }
   }, [showHint]);
 
-  const isExample = value === EXAMPLE_TEXT;
-  const autoCount = isExample
-    ? MASK_DEFINITIONS.reduce(
-        (total, definition, index) =>
-          enabled[index] ? total + definition.values.length : total,
-        0,
-      )
-    : 0;
+  const autoCount = MASK_DEFINITIONS.reduce(
+    (total, definition, index) =>
+      enabled[index]
+        ? total + definition.values.reduce(
+            (valueTotal, valueToMask) =>
+              valueTotal + countOccurrences(value, valueToMask),
+            0,
+          )
+        : total,
+    0,
+  );
   const count = autoCount + manualMasks.length;
+
+  const updateCaret = (nextCaret: TextCaret) => {
+    setCaret((currentCaret) => (
+      currentCaret.start === nextCaret.start && currentCaret.end === nextCaret.end
+        ? currentCaret
+        : nextCaret
+    ));
+  };
 
   const removeManualMask = (id: string) => {
     setManualMasks((previous) => previous.filter((mask) => mask.id !== id));
@@ -226,10 +246,6 @@ export function PreviewPage() {
   };
 
   const content = (masked: boolean) => {
-    if (!isExample) {
-      return value;
-    }
-
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
         ? definition.values.flatMap((valueToMask) => {
@@ -264,7 +280,17 @@ export function PreviewPage() {
           ),
       ),
       ...manual,
-    ].sort((first, second) => first.start - second.start);
+    ]
+      .sort((first, second) => first.start - second.start)
+      .reduce<MaskSegment[]>((result, segment) => {
+        const previous = result.at(-1);
+
+        if (!previous || segment.start >= previous.end) {
+          result.push(segment);
+        }
+
+        return result;
+      }, []);
     const result = [];
     let cursor = 0;
 
@@ -310,7 +336,17 @@ export function PreviewPage() {
                 <PromptInput
                   aria-label="ChatGPT 메시지 입력"
                   value={value}
-                  onChange={(event) => setValue(event.target.value)}
+                  onChange={(event) => {
+                    setValue(event.target.value);
+                    updateCaret({
+                      start: event.target.selectionStart ?? event.target.value.length,
+                      end: event.target.selectionEnd ?? event.target.value.length,
+                    });
+                  }}
+                  onSelect={(event) => updateCaret({
+                    start: event.currentTarget.selectionStart ?? event.currentTarget.value.length,
+                    end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length,
+                  })}
                   placeholder="ChatGPT에게 물어보세요"
                 />
                 <EveilSlot>
@@ -347,12 +383,15 @@ export function PreviewPage() {
               onChange={setValue}
               view={view}
               onViewChange={setView}
-              originalContent={isExample ? content(false) : undefined}
+              originalContent={content(false)}
               maskedContent={content(true)}
               count={count}
+              caret={caret}
+              onCaretChange={updateCaret}
               onClose={() => setScreen("button")}
               onExpand={() => setScreen("comparison")}
               onSettings={() => setScreen("comparison")}
+              onSend={() => undefined}
             />
           )}
         </Workspace>
@@ -368,12 +407,17 @@ export function PreviewPage() {
           onCollapse={() => setScreen("chat")}
           onAddManualMask={addManualMask}
           onRemoveManualMask={removeManualMask}
+          onSend={() => undefined}
           types={MASK_DEFINITIONS.map((definition, index) => (
             <MaskTypeItem
               key={definition.id}
               label={definition.label}
               icon={definition.icon}
-              count={isExample ? definition.values.length : 0}
+              count={definition.values.reduce(
+                (total, valueToMask) =>
+                  total + countOccurrences(value, valueToMask),
+                0,
+              )}
               checked={enabled[index]}
               onChange={(checked) =>
                 setEnabled((previous) =>

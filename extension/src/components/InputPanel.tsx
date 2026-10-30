@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import styled from '@emotion/styled';
 import { colors } from '../styles/colors';
 import { Icon, Logo } from './Icon';
@@ -18,6 +18,11 @@ type InputPanelProps = {
   originalContent?: ReactNode;
   maskedContent?: ReactNode;
   count?: number;
+  caret: {
+    start: number;
+    end: number;
+  };
+  onCaretChange: (caret: { start: number; end: number }) => void;
   onClose: () => void;
   onExpand: () => void;
   onSettings: () => void;
@@ -113,7 +118,6 @@ const TextContent = styled.div`
 const OriginalContent = styled(TextContent)`
   position: absolute;
   inset: 0;
-  overflow: hidden;
   pointer-events: none;
   overflow-wrap: break-word;
 `;
@@ -129,8 +133,10 @@ const Textarea = styled.textarea<{ masked: boolean }>`
   color: ${({ masked }) => masked ? 'transparent' : colors.text};
   background: transparent;
   caret-color: ${colors.text};
+  overflow-wrap: break-word;
   font-size: 16px;
   line-height: 28.8px;
+  white-space: pre-wrap;
 `;
 
 const Footer = styled.footer`
@@ -169,33 +175,91 @@ export function InputPanel({
   originalContent,
   maskedContent,
   count = 0,
+  caret,
+  onCaretChange,
   onClose,
   onExpand,
   onSettings,
   onSend,
 }: InputPanelProps) {
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const originalText = useRef<HTMLDivElement>(null);
+
+  const syncScroll = () => {
+    const input = textarea.current;
+    const original = originalText.current;
+
+    if (!input || !original) {
+      return;
+    }
+
+    original.scrollTop = input.scrollTop;
+    original.scrollLeft = input.scrollLeft;
+  };
+
+  useEffect(() => {
+    const element = textarea.current;
+
+    if (!element) {
+      return;
+    }
+
+    element.focus();
+    element.setSelectionRange(caret.start, caret.end);
+    syncScroll();
+  }, [caret]);
+
+  const saveCaret = () => {
+    const element = textarea.current;
+
+    if (!element) {
+      return;
+    }
+
+    onCaretChange({
+      start: element.selectionStart,
+      end: element.selectionEnd,
+    });
+  };
+
   return <Panel aria-label="Eveil 입력창">
     <Header>
       <LogoArea><Logo size="editor" /></LogoArea>
       <ViewTabs value={view} onChange={onViewChange} />
       <Divider />
       <IconButton icon="settings" label="가릴 정보 유형 설정" onClick={onSettings} />
-      <IconButton icon="expand" label="비교 화면 열기" onClick={onExpand} />
+      <IconButton
+        icon="expand"
+        label="비교 화면 열기"
+        onClick={() => {
+          saveCaret();
+          onExpand();
+        }}
+      />
       <SendButton type="button" variant="filled" disabled={!value.trim() || !onSend} onClick={onSend}>
         <Icon name="send" />가려서 보내기
       </SendButton>
       <IconButton icon="close" label="입력창 닫기" onClick={onClose} />
     </Header>
     <Content>
-      {view === 'original' && originalContent && <OriginalContent aria-hidden="true">
+      {view === 'original' && originalContent && <OriginalContent ref={originalText} aria-hidden="true">
         {originalContent}
       </OriginalContent>}
       {view === 'original'
         ? <Textarea
+          ref={textarea}
           aria-label="보낼 원본 내용"
           value={value}
           masked={Boolean(originalContent)}
-          onChange={event => onChange(event.target.value)}
+          onChange={event => {
+            onChange(event.target.value);
+            onCaretChange({
+              start: event.target.selectionStart,
+              end: event.target.selectionEnd,
+            });
+          }}
+          onSelect={saveCaret}
+          onScroll={syncScroll}
           placeholder="보낼 내용을 입력하세요"
         />
         : <TextContent aria-label="가려진 내용">{maskedContent ?? value}</TextContent>}
