@@ -6,6 +6,7 @@
     "web"
   ],
   "scripts": {
+    "dev": "npm run dev:extension",
     "dev:extension": "npm run dev --workspace=@eveil/extension",
     "dev:web": "npm run dev --workspace=@eveil/web",
     "typecheck": "npm run typecheck --workspaces --if-present"

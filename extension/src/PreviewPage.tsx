@@ -13,6 +13,12 @@ import {
   type MaskDefinition,
 } from "./masking";
 import { colors } from "./styles/colors";
+import {
+  createMasking,
+  deleteMapping,
+  getMaskCode,
+  putMapping,
+} from "./api/maskings";
 
 type Screen = "button" | "chat" | "comparison";
 type TextCaret = {
@@ -83,6 +89,14 @@ const Heading = styled.h1`
 
 const WorkspaceContent = styled.div`
   width: min(760px, 100%);
+`;
+
+const SendStatus = styled.p<{ error?: boolean }>`
+  width: min(760px, 100%);
+  margin: 12px 0 0;
+  color: ${({ error }) => (error ? "#EF625D" : colors.muted)};
+  font-size: 14px;
+  line-height: 1.5;
 `;
 
 const Prompt = styled.div`
@@ -188,6 +202,11 @@ export function PreviewPage() {
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
   const [manualMasks, setManualMasks] = useState<ManualMask[]>([]);
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{
+    message: string;
+    error: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (showHint) {
@@ -198,7 +217,8 @@ export function PreviewPage() {
   const autoCount = MASK_DEFINITIONS.reduce(
     (total, definition, index) =>
       enabled[index]
-        ? total + definition.values.reduce(
+        ? total +
+          definition.values.reduce(
             (valueTotal, valueToMask) =>
               valueTotal + countOccurrences(value, valueToMask),
             0,
@@ -208,22 +228,99 @@ export function PreviewPage() {
   );
   const count = autoCount + manualMasks.length;
 
-  const updateCaret = (nextCaret: TextCaret) => {
-    setCaret((currentCaret) => (
-      currentCaret.start === nextCaret.start && currentCaret.end === nextCaret.end
-        ? currentCaret
-        : nextCaret
-    ));
+  const removeManualMask = async (id: string) => {
+    const mask = manualMasks.find((item) => item.id === id);
+    if (!mask) return;
+
+    setSending(true);
+    setSendStatus({
+      message: "마스킹 해제를 요청하는 중입니다…",
+      error: false,
+    });
+    try {
+      await deleteMapping(mask.maskCode);
+      setManualMasks((previous) => previous.filter((item) => item.id !== id));
+      setSendStatus({
+        message: "마스킹을 해제했습니다. (HTTP 204)",
+        error: false,
+      });
+    } catch (error) {
+      setSendStatus({
+        message:
+          error instanceof Error
+            ? error.message
+            : "마스킹 해제에 실패했습니다.",
+        error: true,
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
-  const removeManualMask = (id: string) => {
-    setManualMasks((previous) => previous.filter((mask) => mask.id !== id));
+  const sendForMasking = async () => {
+    if (!value.trim()) {
+      setSendStatus({ message: "마스킹할 내용을 입력해 주세요.", error: true });
+      return;
+    }
+    setSending(true);
+    setSendStatus({ message: "마스킹 API에 요청 중입니다…", error: false });
+    try {
+      await createMasking(
+        value,
+        MASK_DEFINITIONS.filter((_, index) => enabled[index]).map(
+          (definition) => definition.id,
+        ),
+      );
+      setSendStatus({
+        message: "마스킹 매핑이 업데이트됐습니다. (HTTP 204)",
+        error: false,
+      });
+    } catch (error) {
+      setSendStatus({
+        message:
+          error instanceof Error
+            ? error.message
+            : "마스킹 요청에 실패했습니다.",
+        error: true,
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
-  const addManualMask = (mask: Omit<ManualMask, "id" | "label">) => {
+  const changeView = (nextView: "original" | "masked") => {
+    setView(nextView);
+    if (nextView === "masked") {
+      void sendForMasking();
+    }
+  };
+
+  const addManualMask = async (
+    mask: Omit<ManualMask, "id" | "label" | "maskCode">,
+  ) => {
     const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
 
     if (!definition) {
+      return;
+    }
+
+    const sequence =
+      manualMasks.filter((item) => item.type === mask.type).length + 1;
+    const maskCode = getMaskCode(mask.type, sequence);
+    setSending(true);
+    setSendStatus({
+      message: "선택한 마스킹 매핑을 저장하는 중입니다…",
+      error: false,
+    });
+    try {
+      await putMapping(mask.text, mask.type);
+    } catch (error) {
+      setSendStatus({
+        message:
+          error instanceof Error ? error.message : "매핑 저장에 실패했습니다.",
+        error: true,
+      });
+      setSending(false);
       return;
     }
 
@@ -231,8 +328,6 @@ export function PreviewPage() {
       const remaining = previous.filter(
         (item) => item.end <= mask.start || item.start >= mask.end,
       );
-      const sequence =
-        remaining.filter((item) => item.type === mask.type).length + 1;
 
       return [
         ...remaining,
@@ -240,9 +335,15 @@ export function PreviewPage() {
           ...mask,
           id: `manual-${Date.now()}`,
           label: `${definition.label}_${sequence}`,
+          maskCode,
         },
       ];
     });
+    setSendStatus({
+      message: "선택한 마스킹 매핑을 저장했습니다. (HTTP 204)",
+      error: false,
+    });
+    setSending(false);
   };
 
   const content = (masked: boolean) => {
@@ -338,15 +439,24 @@ export function PreviewPage() {
                   value={value}
                   onChange={(event) => {
                     setValue(event.target.value);
-                    updateCaret({
-                      start: event.target.selectionStart ?? event.target.value.length,
-                      end: event.target.selectionEnd ?? event.target.value.length,
+                    setCaret({
+                      start:
+                        event.target.selectionStart ??
+                        event.target.value.length,
+                      end:
+                        event.target.selectionEnd ?? event.target.value.length,
                     });
                   }}
-                  onSelect={(event) => updateCaret({
-                    start: event.currentTarget.selectionStart ?? event.currentTarget.value.length,
-                    end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length,
-                  })}
+                  onSelect={(event) =>
+                    setCaret({
+                      start:
+                        event.currentTarget.selectionStart ??
+                        event.currentTarget.value.length,
+                      end:
+                        event.currentTarget.selectionEnd ??
+                        event.currentTarget.value.length,
+                    })
+                  }
                   placeholder="ChatGPT에게 물어보세요"
                 />
                 <EveilSlot>
@@ -382,17 +492,26 @@ export function PreviewPage() {
               value={value}
               onChange={setValue}
               view={view}
-              onViewChange={setView}
+              onViewChange={changeView}
               originalContent={content(false)}
               maskedContent={content(true)}
               count={count}
               caret={caret}
-              onCaretChange={updateCaret}
+              onCaretChange={setCaret}
               onClose={() => setScreen("button")}
               onExpand={() => setScreen("comparison")}
               onSettings={() => setScreen("comparison")}
-              onSend={() => undefined}
+              onSend={sendForMasking}
+              sending={sending}
             />
+          )}
+          {screen === "chat" && sendStatus && (
+            <SendStatus
+              role={sendStatus.error ? "alert" : "status"}
+              error={sendStatus.error}
+            >
+              {sendStatus.message}
+            </SendStatus>
           )}
         </Workspace>
       </Content>
@@ -403,11 +522,12 @@ export function PreviewPage() {
           count={count}
           maskOptions={MASK_DEFINITIONS}
           manualMasks={manualMasks}
+          requestStatus={sendStatus}
           onClose={() => setScreen("chat")}
           onCollapse={() => setScreen("chat")}
           onAddManualMask={addManualMask}
           onRemoveManualMask={removeManualMask}
-          onSend={() => undefined}
+          onSend={sendForMasking}
           types={MASK_DEFINITIONS.map((definition, index) => (
             <MaskTypeItem
               key={definition.id}
