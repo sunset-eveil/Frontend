@@ -1,6 +1,7 @@
 import styled from '@emotion/styled';
-import { ArrowsClockwise, ShieldCheck } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { keyframes } from '@emotion/react';
+import { ArrowsClockwise, ShieldCheck, WarningCircle } from '@phosphor-icons/react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { MaskedToken } from '../../components/masked-token';
 import { colors, shadows } from '../../styles/colors';
 import { fonts } from '../../styles/fonts';
@@ -155,48 +156,91 @@ const WindowFooter = styled.div`
   padding: 14px 22px;
 `;
 
-const Status = styled.span`
+const Status = styled.span<{ isProtected: boolean }>`
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  color: ${colors.primaryDeep};
+  color: ${({ isProtected }) => (isProtected ? colors.primaryDeep : colors.danger)};
+  transition: color 0.2s ease;
   font-size: 14px;
   font-weight: ${fonts.weight.semibold};
   line-height: normal;
 `;
 
-const ToggleLabel = styled.span`
+const ToggleButton = styled.button`
   display: inline-flex;
   gap: 10px;
   align-items: center;
   padding: 4px;
+  border: none;
+  border-radius: 999px;
+  background: none;
   color: ${colors.secondary};
   font-size: 14px;
   font-weight: ${fonts.weight.semibold};
   line-height: normal;
+
+  &:focus-visible {
+    outline: 2px solid ${colors.primary};
+    outline-offset: 2px;
+  }
 `;
 
-const Toggle = styled.span`
-  display: flex;
-  justify-content: flex-end;
+const Toggle = styled.span<{ isOn: boolean }>`
+  position: relative;
   width: 42px;
   height: 24px;
-  padding: 3px;
   border-radius: 999px;
-  background: ${colors.primary};
+  background: ${({ isOn }) => (isOn ? colors.primary : colors.toggleOff)};
+  transition: background-color 0.2s ease;
 
   &::after {
     content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
     width: 18px;
     height: 18px;
     border-radius: 9px;
     background: ${colors.white};
     box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2);
+    transform: translateX(${({ isOn }) => (isOn ? 18 : 0)}px);
+    transition: transform 0.2s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
   }
 `;
 
-const Toast = styled.div`
+const swapIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+`;
+
+const Swap = styled.span`
+  animation: ${swapIn} 0.25s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+const Toast = styled.div<{ isVisible: boolean }>`
   position: absolute;
+  opacity: ${({ isVisible }) => (isVisible ? 1 : 0)};
+  transform: translateY(${({ isVisible }) => (isVisible ? 0 : 8)}px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
   bottom: -72px;
   left: -28px;
   display: flex;
@@ -240,7 +284,25 @@ const ToastCaption = styled.span`
   font-size: 12px;
 `;
 
+type MessagePart = string | { token: string; original: string };
+
+const MESSAGE: readonly MessagePart[] = [
+  '제 이력서 좀 다듬어 줘. 이름 ',
+  { token: '이름_1', original: '김민지' },
+  ', 연락처 ',
+  { token: '전화번호_1', original: '010-2345-6789' },
+  ', 이메일 ',
+  { token: '이메일_1', original: 'minji.kim@mail.com' },
+  ', 주소는 ',
+  { token: '주소_1', original: '서울 마포구 월드컵로 12' },
+  '이야.',
+];
+
+const MASKED_COUNT = MESSAGE.filter((part) => typeof part !== 'string').length;
+
 export function HeroSection(): ReactNode {
+  const [isProtected, setIsProtected] = useState(true);
+
   return (
     <Section>
       <Ring diameter={560} offset={160} alpha={colors.whiteAlpha12} />
@@ -259,7 +321,7 @@ export function HeroSection(): ReactNode {
           <StartActions />
         </Copy>
 
-        <Preview aria-hidden>
+        <Preview>
           <ChatWindow>
             <WindowBar>
               <WindowDot />
@@ -270,24 +332,47 @@ export function HeroSection(): ReactNode {
             <WindowBody>
               <InputLabel>내가 입력한 메시지</InputLabel>
               <InputBox>
-                제 이력서 좀 다듬어 줘. 이름 <MaskedToken>이름_1</MaskedToken>, 연락처{' '}
-                <MaskedToken>전화번호_1</MaskedToken>, 이메일 <MaskedToken>이메일_1</MaskedToken>, 주소는{' '}
-                <MaskedToken>주소_1</MaskedToken> 이야.
+                {MESSAGE.map((part, index) => {
+                  if (typeof part === 'string') {
+                    return <Fragment key={index}>{part}</Fragment>;
+                  }
+                  return isProtected ? (
+                    <Swap key={`${index}-on`}>
+                      <MaskedToken>{part.token}</MaskedToken>
+                    </Swap>
+                  ) : (
+                    <Swap key={`${index}-off`}>{part.original}</Swap>
+                  );
+                })}
               </InputBox>
             </WindowBody>
             <WindowFooter>
-              <Status>
-                <ShieldCheck size={18} color={colors.primaryDeep} />
-                4건 가림 완료 · 안심하고 보내세요
+              <Status isProtected={isProtected} aria-live="polite">
+                {isProtected ? (
+                  <>
+                    <ShieldCheck size={18} color={colors.primaryDeep} />
+                    {MASKED_COUNT}건 가림 완료 · 안심하고 보내세요
+                  </>
+                ) : (
+                  <>
+                    <WarningCircle size={18} color={colors.danger} />
+                    보호 꺼짐 · 개인정보 {MASKED_COUNT}건이 그대로 보내져요
+                  </>
+                )}
               </Status>
-              <ToggleLabel>
+              <ToggleButton
+                type="button"
+                role="switch"
+                aria-checked={isProtected}
+                onClick={() => setIsProtected((current) => !current)}
+              >
                 Eveil 보호
-                <Toggle />
-              </ToggleLabel>
+                <Toggle isOn={isProtected} />
+              </ToggleButton>
             </WindowFooter>
           </ChatWindow>
 
-          <Toast>
+          <Toast isVisible={isProtected} aria-hidden>
             <ToastIcon>
               <ArrowsClockwise size={18} color={colors.navy} />
             </ToastIcon>

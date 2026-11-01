@@ -2,19 +2,21 @@ import styled from '@emotion/styled';
 import type { Icon } from '@phosphor-icons/react';
 import { CreditCard, Database, LockKey } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { CountUp } from '../../components/count-up';
+import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
 import { colors } from '../../styles/colors';
 import { fonts } from '../../styles/fonts';
 import { media } from '../../styles/layout';
 
-type Stat = { value: string; label: string };
+type Stat = { value: number; decimals?: number; suffix: string; label: string };
 type Testimonial = { quote: string; name: string; role: string };
 type SafetyPromise = { icon: Icon; label: string; text: string };
 
 const STATS: readonly Stat[] = [
-  { value: '12만+', label: '누적 사용자' },
-  { value: '3,400만', label: '감지된 개인정보' },
-  { value: '4.8', label: '크롬 웹스토어 평점' },
+  { value: 12, suffix: '만+', label: '누적 사용자' },
+  { value: 3400, suffix: '만', label: '감지된 개인정보' },
+  { value: 4.8, decimals: 1, suffix: '', label: '크롬 웹스토어 평점' },
 ];
 
 const TESTIMONIALS: readonly Testimonial[] = [
@@ -110,10 +112,27 @@ const Card = styled.figure`
   display: flex;
   flex-direction: column;
   gap: 24px;
+  height: 100%;
   margin: 0;
   padding: 32px;
   border-radius: 16px;
   background: ${colors.navyCard};
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    background: ${colors.navyCardHover};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
 `;
 
 const Quote = styled.blockquote`
@@ -191,26 +210,30 @@ export function ProofSection(): ReactNode {
         />
 
         <Stats>
-          {STATS.map(({ value, label }) => (
+          {STATS.map(({ value, decimals, suffix, label }) => (
             <StatItem key={label}>
               <StatLabel>{label}</StatLabel>
-              <StatValue>{value}</StatValue>
+              <StatValue>
+                <CountUp to={value} decimals={decimals} suffix={suffix} />
+              </StatValue>
             </StatItem>
           ))}
         </Stats>
 
         <Grid>
-          {TESTIMONIALS.map(({ quote, name, role }) => (
-            <Card key={name}>
-              <Quote>{quote}</Quote>
-              <Author>
-                <Avatar aria-hidden>{name.charAt(0)}</Avatar>
-                <AuthorText>
-                  <span css={{ color: colors.white, fontSize: 16, fontWeight: fonts.weight.bold }}>{name}</span>
-                  <span css={{ color: colors.subtle, fontSize: 14 }}>{role}</span>
-                </AuthorText>
-              </Author>
-            </Card>
+          {TESTIMONIALS.map(({ quote, name, role }, index) => (
+            <Reveal key={name} delay={index * 120}>
+              <Card>
+                <Quote>{quote}</Quote>
+                <Author>
+                  <Avatar aria-hidden>{name.charAt(0)}</Avatar>
+                  <AuthorText>
+                    <span css={{ color: colors.white, fontSize: 16, fontWeight: fonts.weight.bold }}>{name}</span>
+                    <span css={{ color: colors.subtle, fontSize: 14 }}>{role}</span>
+                  </AuthorText>
+                </Author>
+              </Card>
+            </Reveal>
           ))}
         </Grid>
 

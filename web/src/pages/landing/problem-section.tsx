@@ -2,6 +2,7 @@ import styled from '@emotion/styled';
 import type { Icon } from '@phosphor-icons/react';
 import { CreditCard, Database, LockKeyOpen } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
 import { colors } from '../../styles/colors';
 import { fonts } from '../../styles/fonts';
@@ -16,7 +17,11 @@ type Concern = {
 const CONCERNS: readonly Concern[] = [
   { icon: Database, quote: '“내 정보가 기록으로 남는 게 싫어요.”', detail: '보낸 대화는 서버에 그대로 저장돼요.' },
   { icon: LockKeyOpen, quote: '“해킹으로 유출될까 봐 불안해요.”', detail: '계정 도용 한 번에 대화가 통째로 넘어가요.' },
-  { icon: CreditCard, quote: '“금융 사기에 쓰일까 봐 걱정돼요.”', detail: '유출된 계좌·카드번호는 피싱의 재료가 돼요.' },
+  {
+    icon: CreditCard,
+    quote: '“금융 사기에 쓰일까 봐 걱정돼요.”',
+    detail: '유출된 계좌·카드번호는 피싱의 재료가 돼요.',
+  },
 ];
 
 const Section = styled.section`
@@ -52,8 +57,26 @@ const Card = styled.article`
   flex-direction: column;
   gap: 18px;
   padding: 32px;
+  height: 100%;
   border-radius: 16px;
   background: ${colors.white};
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px -20px rgba(30, 40, 110, 0.35);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
 `;
 
 const IconCircle = styled.span`
@@ -84,25 +107,29 @@ export function ProblemSection(): ReactNode {
   return (
     <Section id="problem">
       <Inner>
-        <SectionTitle
-          eyebrow="PROBLEM"
-          title={
-            <>
-              편해서 쓰는 ChatGPT,
-              <br />내 정보는 어디까지 보냈을까요?
-            </>
-          }
-          description="한 번 보낸 메시지는 되돌릴 수 없어요."
-        />
+        <Reveal>
+          <SectionTitle
+            eyebrow="PROBLEM"
+            title={
+              <>
+                편해서 쓰는 ChatGPT,
+                <br />내 정보는 어디까지 보냈을까요?
+              </>
+            }
+            description="한 번 보낸 메시지는 되돌릴 수 없어요."
+          />
+        </Reveal>
         <Grid>
-          {CONCERNS.map(({ icon: ConcernIcon, quote, detail }) => (
-            <Card key={quote}>
-              <IconCircle>
-                <ConcernIcon size={24} color={colors.danger} />
-              </IconCircle>
-              <Quote>{quote}</Quote>
-              <Detail>{detail}</Detail>
-            </Card>
+          {CONCERNS.map(({ icon: ConcernIcon, quote, detail }, index) => (
+            <Reveal key={quote} delay={index * 120}>
+              <Card>
+                <IconCircle>
+                  <ConcernIcon size={24} color={colors.danger} />
+                </IconCircle>
+                <Quote>{quote}</Quote>
+                <Detail>{detail}</Detail>
+              </Card>
+            </Reveal>
           ))}
         </Grid>
       </Inner>

@@ -2,6 +2,7 @@ import styled from '@emotion/styled';
 import type { Icon } from '@phosphor-icons/react';
 import { Keyboard, PuzzlePiece, ShieldCheck } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { Reveal } from '../../components/reveal';
 import { colors } from '../../styles/colors';
 import { fonts } from '../../styles/fonts';
 import { media } from '../../styles/layout';
@@ -110,6 +111,22 @@ const IconTile = styled.span`
   border-radius: 48px;
   background: ${colors.tile};
   box-shadow: 0 0 0 10px ${colors.tileRing};
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+
+  li:hover & {
+    transform: translateY(-4px) rotate(-6deg);
+    box-shadow: 0 0 0 14px ${colors.tileRing};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    li:hover & {
+      transform: none;
+    }
+  }
 `;
 
 const StepNumber = styled.span`
@@ -144,12 +161,17 @@ export function ProcessSection(): ReactNode {
         <Steps>
           {STEPS.map(({ icon: StepIcon, title, text }, index) => (
             <StepItem key={title}>
-              <IconTile>
-                <StepIcon size={40} color={colors.primary} />
-              </IconTile>
-              <StepNumber>STEP {index + 1}</StepNumber>
-              <StepTitle>{title}</StepTitle>
-              <StepText>{text}</StepText>
+              <Reveal
+                delay={index * 150}
+                css={{ display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'center' }}
+              >
+                <IconTile>
+                  <StepIcon size={40} color={colors.primary} />
+                </IconTile>
+                <StepNumber>STEP {index + 1}</StepNumber>
+                <StepTitle>{title}</StepTitle>
+                <StepText>{text}</StepText>
+              </Reveal>
             </StepItem>
           ))}
         </Steps>

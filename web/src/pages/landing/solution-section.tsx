@@ -1,8 +1,9 @@
 import styled from '@emotion/styled';
-import { ArrowDown, ArrowRight, CheckCircle, Monitor } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { ArrowDown, ArrowRight, Circle, CheckCircle, Monitor } from '@phosphor-icons/react';
+import { useState, type ReactNode } from 'react';
 import { ChatgptMark } from '../../components/chatgpt-mark';
 import { MaskedToken } from '../../components/masked-token';
+import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
 import { colors, shadows } from '../../styles/colors';
 import { fonts } from '../../styles/fonts';
@@ -125,16 +126,39 @@ const DetectGrid = styled.ul`
   list-style: none;
 `;
 
-const DetectItem = styled.li`
+const DetectItem = styled.button<{ isOn: boolean }>`
   display: flex;
   gap: 8px;
   align-items: center;
+  width: 100%;
   height: 38px;
   padding: 10px 12px;
+  border: none;
   border-radius: 8px;
-  background: ${colors.background};
-  color: ${colors.heading};
+  background: ${({ isOn }) => (isOn ? colors.background : colors.white)};
+  box-shadow: ${({ isOn }) => (isOn ? 'none' : `inset 0 0 0 1px ${colors.divider}`)};
+  color: ${({ isOn }) => (isOn ? colors.heading : colors.muted)};
   font-size: 14px;
+  line-height: normal;
+  text-align: left;
+  text-decoration: ${({ isOn }) => (isOn ? 'none' : 'line-through')};
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: ${colors.tile};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${colors.primary};
+    outline-offset: 1px;
+  }
+`;
+
+const DetectHint = styled.span`
+  color: ${colors.muted};
+  font-size: 12px;
   line-height: normal;
 `;
 
@@ -213,21 +237,64 @@ const FlowPill = styled.span`
   white-space: nowrap;
 `;
 
+function DetectPanel(): ReactNode {
+  const [enabled, setEnabled] = useState<ReadonlySet<string>>(() => new Set(MASK_TYPES));
+
+  const toggle = (type: string): void => {
+    setEnabled((current) => {
+      const next = new Set(current);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <DetectCard>
+      <DetectHeader>
+        <span>감지 항목</span>
+        <span aria-live="polite" css={{ color: enabled.size > 0 ? colors.primary : colors.muted }}>
+          {enabled.size > 0 ? `${enabled.size}종 보호 중` : '보호 꺼짐'}
+        </span>
+      </DetectHeader>
+      <DetectGrid>
+        {MASK_TYPES.map((type) => {
+          const isOn = enabled.has(type);
+          return (
+            <li key={type}>
+              <DetectItem type="button" isOn={isOn} aria-pressed={isOn} onClick={() => toggle(type)}>
+                {isOn ? <CheckCircle size={18} color={colors.primary} /> : <Circle size={18} color={colors.muted} />}
+                {type}
+              </DetectItem>
+            </li>
+          );
+        })}
+      </DetectGrid>
+      <DetectHint>항목을 눌러 켜고 끌 수 있어요</DetectHint>
+    </DetectCard>
+  );
+}
+
 export function SolutionSection(): ReactNode {
   return (
     <Section id="solution">
       <Intro>
-        <SectionTitle
-          eyebrow="SOLUTION"
-          title={
-            <>
-              쓰던 방식 그대로,
-              <br />
-              개인정보만 쏙 빼고 보내요
-            </>
-          }
-          description="ChatGPT 입력창 옆 버튼 하나로 켜고 끌 수 있어요."
-        />
+        <Reveal>
+          <SectionTitle
+            eyebrow="SOLUTION"
+            title={
+              <>
+                쓰던 방식 그대로,
+                <br />
+                개인정보만 쏙 빼고 보내요
+              </>
+            }
+            description="ChatGPT 입력창 옆 버튼 하나로 켜고 끌 수 있어요."
+          />
+        </Reveal>
       </Intro>
 
       <Feature padding={40}>
@@ -240,21 +307,8 @@ export function SolutionSection(): ReactNode {
           </FeatureTitle>
           <FeatureText>이름, 연락처, 주민번호, 계좌·카드번호, 주소를 바로 표시해요.</FeatureText>
         </FeatureCopy>
-        <Visual tone="light" aria-hidden>
-          <DetectCard>
-            <DetectHeader>
-              <span>감지 항목</span>
-              <span css={{ color: colors.primary }}>6종 보호 중</span>
-            </DetectHeader>
-            <DetectGrid>
-              {MASK_TYPES.map((type) => (
-                <DetectItem key={type}>
-                  <CheckCircle size={18} color={colors.primary} />
-                  {type}
-                </DetectItem>
-              ))}
-            </DetectGrid>
-          </DetectCard>
+        <Visual tone="light">
+          <DetectPanel />
         </Visual>
       </Feature>
 
