@@ -1,19 +1,12 @@
+import { Global } from '@emotion/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Global, css } from '@emotion/react';
 import { App } from './App';
+import { globalStyles } from './styles/global';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Global styles={css`
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-      }
-    `} />
+    <Global styles={globalStyles} />
     <App />
   </StrictMode>,
 );
