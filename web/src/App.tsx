@@ -1,13 +1,21 @@
-import styled from '@emotion/styled';
+import type { ReactNode } from 'react';
+import { useRoute } from './hooks/use-route';
+import { HelpPage } from './pages/help/help-page';
+import { InstallPage } from './pages/install/install-page';
+import { LandingPage } from './pages/landing/landing-page';
+import { OnboardingPage } from './pages/onboarding/onboarding-page';
 
-const Page = styled.main`
-  display: grid;
-  min-height: 100dvh;
-  place-items: center;
-  color: #ececec;
-  background: #0d0d0d;
-`;
+export function App(): ReactNode {
+  const path = useRoute();
 
-export function App() {
-  return <Page>Eveil Web</Page>;
+  switch (path) {
+    case '/help':
+      return <HelpPage />;
+    case '/install':
+      return <InstallPage />;
+    case '/onboarding':
+      return <OnboardingPage />;
+    case '/':
+      return <LandingPage />;
+  }
 }
