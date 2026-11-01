@@ -38,6 +38,26 @@ async function getLocalData(): Promise<RegistrationData> {
   return stored[LOCAL_KEY] ?? {};
 }
 
+export async function getClientCredentials(): Promise<{
+  clientId: string;
+  authKey: string;
+  kek: string;
+}> {
+  const data = await getLocalData();
+  const session = await chrome.storage.session.get([KEK_SESSION_KEY, AUTH_SESSION_KEY]);
+  const authKey = session[AUTH_SESSION_KEY];
+  const kek = session[KEK_SESSION_KEY];
+
+  if (
+    !data.isRegistered || !data.clientId ||
+    typeof authKey !== 'string' || typeof kek !== 'string'
+  ) {
+    throw new RegistrationError('클라이언트 등록 또는 잠금 해제가 필요합니다.');
+  }
+
+  return { clientId: data.clientId, authKey, kek };
+}
+
 export async function getRegistrationMode(): Promise<RegistrationMode> {
   const data = await getLocalData();
 
