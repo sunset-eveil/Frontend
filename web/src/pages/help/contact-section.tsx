@@ -192,10 +192,26 @@ const Agreement = styled.label`
   cursor: pointer;
 
   input {
+    flex-shrink: 0;
     width: 18px;
     height: 18px;
     margin: 0;
-    accent-color: ${colors.primary};
+    border: 1px solid ${colors.checkboxBorder};
+    border-radius: 2.5px;
+    background: ${colors.white} center / 12px no-repeat;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  input:checked {
+    border-color: ${colors.primary};
+    background-color: ${colors.primary};
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  input:focus-visible {
+    outline: 2px solid ${colors.primary};
+    outline-offset: 2px;
   }
 `;
 

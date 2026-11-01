@@ -12,6 +12,7 @@ export const colors = {
   subtle: '#A9ADCB',
   placeholder: '#757575',
   border: '#D9DCE6',
+  checkboxBorder: '#767676',
   divider: '#ECEEF4',
   track: '#E3E5EC',
   background: '#F4F5F9',

@@ -334,6 +334,7 @@ const DemoInput = styled.textarea`
   padding: 15px 16px;
   border: 1px solid ${colors.border};
   border-radius: 12px;
+  background: ${colors.white};
   color: ${colors.heading};
   font-size: 16px;
   line-height: 28.8px;

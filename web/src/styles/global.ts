@@ -15,8 +15,15 @@ export const globalStyles = css`
     box-sizing: border-box;
   }
 
+  /* 시스템이 다크 모드여도 입력창 등 기본 컨트롤이 어둡게 칠해지지 않도록 라이트로 고정 */
+  html,
+  body {
+    color-scheme: light;
+  }
+
   body {
     margin: 0;
+    background: ${colors.white};
   }
 
   h1,
