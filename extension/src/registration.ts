@@ -14,7 +14,8 @@ export class RegistrationError extends Error {
 }
 
 const LOCAL_KEY = 'eveilRegistration';
-const SESSION_KEY = 'eveilKek';
+const KEK_SESSION_KEY = 'eveilKek';
+const AUTH_SESSION_KEY = 'eveilAuthKey';
 const ENCODER = new TextEncoder();
 
 function toBase64(bytes: Uint8Array): string {
@@ -44,8 +45,8 @@ export async function getRegistrationMode(): Promise<RegistrationMode> {
     return 'register';
   }
 
-  const session = await chrome.storage.session.get(SESSION_KEY);
-  return session[SESSION_KEY] ? 'ready' : 'unlock';
+  const session = await chrome.storage.session.get([KEK_SESSION_KEY, AUTH_SESSION_KEY]);
+  return session[KEK_SESSION_KEY] && session[AUTH_SESSION_KEY] ? 'ready' : 'unlock';
 }
 
 async function deriveKeys(
@@ -102,8 +103,11 @@ export async function submitPassphrase(
       throw new RegistrationError('등록 정보를 찾을 수 없습니다.');
     }
 
-    const { kek } = await deriveKeys(passphrase, stored.salt);
-    await chrome.storage.session.set({ [SESSION_KEY]: kek });
+    const { kek, authKey } = await deriveKeys(passphrase, stored.salt);
+    await chrome.storage.session.set({
+      [KEK_SESSION_KEY]: kek,
+      [AUTH_SESSION_KEY]: authKey,
+    });
     return;
   }
 
@@ -121,7 +125,10 @@ export async function submitPassphrase(
   }
 
   const { kek, authKey } = await deriveKeys(passphrase, data.salt!);
-  await chrome.storage.session.set({ [SESSION_KEY]: kek });
+  await chrome.storage.session.set({
+    [KEK_SESSION_KEY]: kek,
+    [AUTH_SESSION_KEY]: authKey,
+  });
   const response = await fetch(`${baseUrl}/api/clients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
