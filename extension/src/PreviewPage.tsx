@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from "@emotion/styled";
 import bgImage from "./assets/bg.png";
 import { ComparisonPanel } from "./components/ComparisonPanel";
@@ -13,6 +14,8 @@ import {
   type MaskDefinition,
 } from "./masking";
 import { colors } from "./styles/colors";
+import { getOrCreateChatId } from './chat-id';
+import { getChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
   createMasking,
   deleteMapping,
@@ -34,6 +37,8 @@ type MaskSegment = {
   end: number;
   definition: MaskDefinition;
   manual?: ManualMask;
+  mapping?: ChatMapping;
+  reveal?: boolean;
 };
 
 const Page = styled.main`
@@ -188,11 +193,16 @@ const suggestions: Suggestion[] = [
   },
 ];
 
-function countOccurrences(text: string, query: string) {
+function countOccurrences(text: string, query: string): number {
+  if (!query) return 0;
   return text.split(query).length - 1;
 }
 
 export function PreviewPage() {
+  const queryClient = useQueryClient();
+  const [chatId, setChatId] = useState<string>();
+  const activeChatId = useRef<string | undefined>(undefined);
+  const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("button");
   const [showHint, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
@@ -207,6 +217,80 @@ export function PreviewPage() {
     message: string;
     error: boolean;
   } | null>(null);
+  const mappingsQuery = useQuery({
+    queryKey: ['chat-mappings', chatId],
+    queryFn: () => getChatMappings(chatId!),
+    enabled: false,
+    staleTime: Infinity,
+  });
+  const activeMappings = maskedValue === value && !mappingsQuery.isStale
+    ? mappingsQuery.data
+    : undefined;
+
+  useEffect(() => {
+    let isActive = true;
+    let activeTabId: number | undefined;
+    let latestUpdate = 0;
+
+    const updateChat = async (conversationId: string | null): Promise<void> => {
+      const update = ++latestUpdate;
+      const nextChatId = await getOrCreateChatId(conversationId, activeTabId);
+
+      if (isActive && update === latestUpdate && activeChatId.current !== nextChatId) {
+        if (activeChatId.current) {
+          setValue('');
+          setMaskedValue(null);
+          setManualMasks([]);
+          setEnabled(MASK_DEFINITIONS.map(() => true));
+          setView('original');
+        }
+
+        activeChatId.current = nextChatId;
+        setChatId(nextChatId);
+      }
+    };
+
+    const handleMessage = (
+      message: { type?: string; conversationId?: string | null },
+      sender: chrome.runtime.MessageSender,
+    ): void => {
+      if (message.type === 'eveil:conversation-change' && sender.tab?.id === activeTabId) {
+        void updateChat(message.conversationId ?? null);
+      }
+    };
+
+    if (!globalThis.chrome?.tabs) {
+      void updateChat(null);
+      return () => { isActive = false; };
+    }
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    void chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
+      activeTabId = tab?.id;
+      const initialUpdate = ++latestUpdate;
+      let conversationId: string | null = null;
+
+      if (activeTabId !== undefined) {
+        try {
+          const result = await chrome.tabs.sendMessage(activeTabId, {
+            type: 'eveil:get-conversation',
+          });
+          conversationId = result?.conversationId ?? null;
+        } catch {
+          conversationId = null;
+        }
+      }
+
+      if (initialUpdate === latestUpdate) {
+        await updateChat(conversationId);
+      }
+    }).catch(() => updateChat(null));
+
+    return () => {
+      isActive = false;
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
 
   useEffect(() => {
     if (showHint) {
@@ -214,16 +298,24 @@ export function PreviewPage() {
     }
   }, [showHint]);
 
+  const countMatches = (definition: MaskDefinition): number => {
+    if (activeMappings) {
+      return activeMappings
+        .filter((mapping) => mapping.type === definition.id.toUpperCase())
+        .reduce((total, mapping) => total +
+          countOccurrences(value, mapping.value) +
+          countOccurrences(value, mapping.maskCode), 0);
+    }
+
+    return globalThis.chrome?.storage
+      ? 0
+      : definition.values.reduce(
+          (total, item) => total + countOccurrences(value, item),
+          0,
+        );
+  };
   const autoCount = MASK_DEFINITIONS.reduce(
-    (total, definition, index) =>
-      enabled[index]
-        ? total +
-          definition.values.reduce(
-            (valueTotal, valueToMask) =>
-              valueTotal + countOccurrences(value, valueToMask),
-            0,
-          )
-        : total,
+    (total, definition, index) => total + (enabled[index] ? countMatches(definition) : 0),
     0,
   );
   const count = autoCount + manualMasks.length;
@@ -238,7 +330,9 @@ export function PreviewPage() {
       error: false,
     });
     try {
-      await deleteMapping(mask.maskCode);
+      if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
+      await deleteMapping(chatId, mask.maskCode);
+      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
       setManualMasks((previous) => previous.filter((item) => item.id !== id));
       setSendStatus({
         message: "마스킹을 해제했습니다. (HTTP 204)",
@@ -265,12 +359,29 @@ export function PreviewPage() {
     setSending(true);
     setSendStatus({ message: "마스킹 API에 요청 중입니다…", error: false });
     try {
+      if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
       await createMasking(
+        chatId,
         value,
         MASK_DEFINITIONS.filter((_, index) => enabled[index]).map(
           (definition) => definition.id,
         ),
       );
+      setMaskedValue(value);
+      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
+      try {
+        await queryClient.fetchQuery({
+          queryKey: ['chat-mappings', chatId],
+          queryFn: () => getChatMappings(chatId),
+          staleTime: Infinity,
+        });
+      } catch {
+        setSendStatus({
+          message: '마스킹은 완료됐지만 매핑을 불러오지 못했습니다.',
+          error: true,
+        });
+        return;
+      }
       setSendStatus({
         message: "마스킹 매핑이 업데이트됐습니다. (HTTP 204)",
         error: false,
@@ -295,6 +406,39 @@ export function PreviewPage() {
     }
   };
 
+  const changeMaskType = async (index: number, checked: boolean): Promise<void> => {
+    if (!checked) {
+      if (!chatId) {
+        setSendStatus({ message: '대화 ID를 확인할 수 없습니다.', error: true });
+        return;
+      }
+
+      try {
+        const mappings = await queryClient.fetchQuery({
+          queryKey: ['chat-mappings', chatId],
+          queryFn: () => getChatMappings(chatId),
+          staleTime: Infinity,
+        });
+        if (activeChatId.current !== chatId) return;
+
+        if (mappings.some((mapping) => value.includes(mapping.maskCode))) {
+          setMaskedValue(value);
+        }
+      } catch (error) {
+        if (activeChatId.current !== chatId) return;
+        setSendStatus({
+          message: error instanceof Error ? error.message : '매핑 조회에 실패했습니다.',
+          error: true,
+        });
+        return;
+      }
+    }
+
+    setEnabled((previous) => previous.map((item, itemIndex) => (
+      itemIndex === index ? checked : item
+    )));
+  };
+
   const addManualMask = async (
     mask: Omit<ManualMask, "id" | "label" | "maskCode">,
   ) => {
@@ -313,7 +457,9 @@ export function PreviewPage() {
       error: false,
     });
     try {
-      await putMapping(mask.text, mask.type);
+      if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
+      await putMapping(chatId, mask.text, mask.type);
+      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
     } catch (error) {
       setSendStatus({
         message:
@@ -347,25 +493,62 @@ export function PreviewPage() {
   };
 
   const content = (masked: boolean) => {
+    const mappings = activeMappings;
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
-        ? definition.values.flatMap((valueToMask) => {
+        ? (mappings
+            ? mappings.filter((mapping) => mapping.type === definition.id.toUpperCase())
+            : (globalThis.chrome?.storage ? [] : definition.values).map(
+                (valueToMask) => ({ value: valueToMask, maskCode: '' }),
+              ))
+          .flatMap((mapping) => {
             const segments: MaskSegment[] = [];
-            let start = value.indexOf(valueToMask);
+            let start = value.indexOf(mapping.value);
 
             while (start >= 0) {
               segments.push({
                 start,
-                end: start + valueToMask.length,
+                end: start + mapping.value.length,
                 definition,
+                mapping: mappings ? mapping as ChatMapping : undefined,
               });
-              start = value.indexOf(valueToMask, start + valueToMask.length);
+              start = value.indexOf(mapping.value, start + mapping.value.length);
             }
 
             return segments;
           })
         : [],
     );
+    const codeSegments: MaskSegment[] = masked
+      ? (mappings ?? []).flatMap((mapping) => {
+          const definition = MASK_DEFINITIONS.find(
+            (item) => item.id.toUpperCase() === mapping.type,
+          );
+
+          if (!definition || !mapping.maskCode) return [];
+
+          const segments: MaskSegment[] = [];
+          let start = value.indexOf(mapping.maskCode);
+
+          while (start >= 0) {
+            const before = value[start - 1] ?? '';
+            const after = value[start + mapping.maskCode.length] ?? '';
+
+            if (!/[A-Za-z0-9]/.test(before) && !/[A-Za-z0-9]/.test(after)) {
+              segments.push({
+                start,
+                end: start + mapping.maskCode.length,
+                definition,
+                mapping,
+                reveal: !enabled[MASK_DEFINITIONS.indexOf(definition)],
+              });
+            }
+            start = value.indexOf(mapping.maskCode, start + mapping.maskCode.length);
+          }
+
+          return segments;
+        })
+      : [];
     const manual = manualMasks.flatMap((mask) => {
       const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
 
@@ -380,6 +563,7 @@ export function PreviewPage() {
             (item) => segment.start < item.end && segment.end > item.start,
           ),
       ),
+      ...codeSegments,
       ...manual,
     ]
       .sort((first, second) => first.start - second.start)
@@ -403,13 +587,13 @@ export function PreviewPage() {
       const text = value.slice(segment.start, segment.end);
       const manualId = segment.manual?.id;
       result.push(
-        masked ? (
+        segment.reveal ? (segment.mapping?.value ?? text) : masked ? (
           <MaskChip
             key={`mask-${index}`}
             icon={segment.definition.chip}
             onClick={manualId ? () => removeManualMask(manualId) : undefined}
           >
-            {segment.manual?.label ?? `${segment.definition.label}_1`}
+            {segment.manual?.label ?? segment.mapping?.maskCode ?? `${segment.definition.label}_1`}
           </MaskChip>
         ) : (
           <PrivacyHighlight key={`mask-${index}`}>{text}</PrivacyHighlight>
@@ -533,19 +717,9 @@ export function PreviewPage() {
               key={definition.id}
               label={definition.label}
               icon={definition.icon}
-              count={definition.values.reduce(
-                (total, valueToMask) =>
-                  total + countOccurrences(value, valueToMask),
-                0,
-              )}
+              count={countMatches(definition)}
               checked={enabled[index]}
-              onChange={(checked) =>
-                setEnabled((previous) =>
-                  previous.map((item, itemIndex) =>
-                    itemIndex === index ? checked : item,
-                  ),
-                )
-              }
+              onChange={(checked) => { void changeMaskType(index, checked); }}
             />
           ))}
         />
