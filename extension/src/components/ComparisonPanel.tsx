@@ -24,9 +24,12 @@ type ComparisonPanelProps = {
   count: number;
   maskOptions: MaskDefinition[];
   manualMasks: ManualMask[];
+  requestStatus?: { message: string; error: boolean } | null;
   onClose: () => void;
   onCollapse: () => void;
-  onAddManualMask: (mask: Omit<ManualMask, "id" | "label">) => void;
+  onAddManualMask: (
+    mask: Omit<ManualMask, "id" | "label" | "maskCode">,
+  ) => void;
   onRemoveManualMask: (id: string) => void;
   onSend?: () => void;
 };
@@ -255,6 +258,11 @@ const ManualCount = styled.span`
   font-size: 12px;
 `;
 
+const RequestMessage = styled.span<{ error: boolean }>`
+  color: ${({ error }) => (error ? "#EF625D" : colors.muted)};
+  font-size: 12px;
+`;
+
 function getTextOffset(container: HTMLElement, node: Node, offset: number) {
   const range = document.createRange();
 
@@ -271,6 +279,7 @@ export function ComparisonPanel({
   count,
   maskOptions,
   manualMasks,
+  requestStatus,
   onClose,
   onCollapse,
   onAddManualMask,
@@ -473,6 +482,14 @@ export function ComparisonPanel({
                 <SmallIcon src={eyeOffIcon} alt="" />
                 직접 가림 {manualMasks.length}건
               </ManualCount>
+            )}
+            {requestStatus && (
+              <RequestMessage
+                error={requestStatus.error}
+                role={requestStatus.error ? "alert" : "status"}
+              >
+                {requestStatus.message}
+              </RequestMessage>
             )}
           </FooterStatus>
           <Button

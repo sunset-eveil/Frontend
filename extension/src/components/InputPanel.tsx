@@ -1,11 +1,11 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import styled from '@emotion/styled';
-import { colors } from '../styles/colors';
-import { Icon, Logo } from './Icon';
-import { Button, IconButton } from './Button';
-import { MaskStatus } from './PrivacyText';
+import { useEffect, useRef, type ReactNode } from "react";
+import styled from "@emotion/styled";
+import { colors } from "../styles/colors";
+import { Icon, Logo } from "./Icon";
+import { Button, IconButton } from "./Button";
+import { MaskStatus } from "./PrivacyText";
 
-type ContentView = 'original' | 'masked';
+type ContentView = "original" | "masked";
 type ViewTabsProps = {
   value: ContentView;
   onChange: (value: ContentView) => void;
@@ -27,6 +27,7 @@ type InputPanelProps = {
   onExpand: () => void;
   onSettings: () => void;
   onSend?: () => void;
+  sending?: boolean;
 };
 
 export const Panel = styled.section`
@@ -87,10 +88,11 @@ const Tab = styled.button<{ active: boolean }>`
   gap: 6px;
   height: 31px;
   padding: 6px 10px;
-  border: 1px solid ${({ active }) => active ? colors.accentBorder : 'transparent'};
+  border: 1px solid
+    ${({ active }) => (active ? colors.accentBorder : "transparent")};
   border-radius: 7px;
-  color: ${({ active }) => active ? colors.accentText : colors.muted};
-  background: ${({ active }) => active ? colors.selected : 'transparent'};
+  color: ${({ active }) => (active ? colors.accentText : colors.muted)};
+  background: ${({ active }) => (active ? colors.selected : "transparent")};
   font-size: 14px;
   font-weight: 500;
 `;
@@ -130,7 +132,7 @@ const Textarea = styled.textarea<{ masked: boolean }>`
   padding: 5px 6px;
   border: 0;
   resize: none;
-  color: ${({ masked }) => masked ? 'transparent' : colors.text};
+  color: ${({ masked }) => (masked ? "transparent" : colors.text)};
   background: transparent;
   caret-color: ${colors.text};
   overflow-wrap: break-word;
@@ -147,24 +149,28 @@ const Footer = styled.footer`
 `;
 
 export function ViewTabs({ value, onChange }: ViewTabsProps) {
-  return <Tabs role="group" aria-label="내용 보기">
-    <Tab
-      type="button"
-      active={value === 'original'}
-      aria-pressed={value === 'original'}
-      onClick={() => onChange('original')}
-    >
-      <Icon name="pencil" />원본
-    </Tab>
-    <Tab
-      type="button"
-      active={value === 'masked'}
-      aria-pressed={value === 'masked'}
-      onClick={() => onChange('masked')}
-    >
-      <Icon name="shield" />가림
-    </Tab>
-  </Tabs>;
+  return (
+    <Tabs role="group" aria-label="내용 보기">
+      <Tab
+        type="button"
+        active={value === "original"}
+        aria-pressed={value === "original"}
+        onClick={() => onChange("original")}
+      >
+        <Icon name="pencil" />
+        원본
+      </Tab>
+      <Tab
+        type="button"
+        active={value === "masked"}
+        aria-pressed={value === "masked"}
+        onClick={() => onChange("masked")}
+      >
+        <Icon name="shield" />
+        가림
+      </Tab>
+    </Tabs>
+  );
 }
 
 export function InputPanel({
@@ -181,6 +187,7 @@ export function InputPanel({
   onExpand,
   onSettings,
   onSend,
+  sending = false,
 }: InputPanelProps) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const originalText = useRef<HTMLDivElement>(null);
@@ -222,48 +229,63 @@ export function InputPanel({
     });
   };
 
-  return <Panel aria-label="Eveil 입력창">
-    <Header>
-      <LogoArea><Logo size="editor" /></LogoArea>
-      <ViewTabs value={view} onChange={onViewChange} />
-      <Divider />
-      <IconButton icon="settings" label="가릴 정보 유형 설정" onClick={onSettings} />
-      <IconButton
-        icon="expand"
-        label="비교 화면 열기"
-        onClick={() => {
-          saveCaret();
-          onExpand();
-        }}
-      />
-      <SendButton type="button" variant="filled" disabled={!value.trim() || !onSend} onClick={onSend}>
-        <Icon name="send" />가려서 보내기
-      </SendButton>
-      <IconButton icon="close" label="입력창 닫기" onClick={onClose} />
-    </Header>
-    <Content>
-      {view === 'original' && originalContent && <OriginalContent ref={originalText} aria-hidden="true">
-        {originalContent}
-      </OriginalContent>}
-      {view === 'original'
-        ? <Textarea
-          ref={textarea}
-          aria-label="보낼 원본 내용"
-          value={value}
-          masked={Boolean(originalContent)}
-          onChange={event => {
-            onChange(event.target.value);
-            onCaretChange({
-              start: event.target.selectionStart,
-              end: event.target.selectionEnd,
-            });
-          }}
-          onSelect={saveCaret}
-          onScroll={syncScroll}
-          placeholder="보낼 내용을 입력하세요"
+  return (
+    <Panel aria-label="Eveil 입력창">
+      <Header>
+        <LogoArea>
+          <Logo size="editor" />
+        </LogoArea>
+        <ViewTabs value={view} onChange={onViewChange} />
+        <Divider />
+        <IconButton
+          icon="settings"
+          label="가릴 정보 유형 설정"
+          onClick={onSettings}
         />
-        : <TextContent aria-label="가려진 내용">{maskedContent ?? value}</TextContent>}
-    </Content>
-    <Footer><MaskStatus count={count} /></Footer>
-  </Panel>;
+        <IconButton icon="expand" label="비교 화면 열기" onClick={onExpand} />
+        <SendButton
+          type="button"
+          variant="filled"
+          disabled={!value.trim() || !onSend || sending}
+          onClick={onSend}
+        >
+          <Icon name="send" />
+          {sending ? "마스킹 중…" : "가려서 보내기"}
+        </SendButton>
+        <IconButton icon="close" label="입력창 닫기" onClick={onClose} />
+      </Header>
+      <Content>
+        {view === "original" && originalContent && (
+          <OriginalContent ref={originalText} aria-hidden="true">
+            {originalContent}
+          </OriginalContent>
+        )}
+        {view === "original" ? (
+          <Textarea
+            ref={textarea}
+            aria-label="보낼 원본 내용"
+            value={value}
+            masked={Boolean(originalContent)}
+            onChange={(event) => {
+              onChange(event.target.value);
+              onCaretChange({
+                start: event.target.selectionStart,
+                end: event.target.selectionEnd,
+              });
+            }}
+            onSelect={saveCaret}
+            onScroll={syncScroll}
+            placeholder="보낼 내용을 입력하세요"
+          />
+        ) : (
+          <TextContent aria-label="가려진 내용">
+            {maskedContent ?? value}
+          </TextContent>
+        )}
+      </Content>
+      <Footer>
+        <MaskStatus count={count} />
+      </Footer>
+    </Panel>
+  );
 }
