@@ -1,5 +1,6 @@
 import type { MaskTypeId } from '../masking';
 import { getClientCredentials } from '../registration';
+import { getApiBaseUrl, getAuthHeaders } from './config';
 
 type MaskingRequest = {
   text: string;
@@ -27,13 +28,8 @@ async function request(
   resource: string,
   body?: unknown,
 ): Promise<void> {
-  const { clientId, authKey, kek } = await getClientCredentials();
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ??
-    import.meta.env.VITE_MASKING_API_BASE_URL)?.replace(/\/$/, '');
-
-  if (!baseUrl) {
-    throw new Error('API 서버 주소가 설정되지 않았습니다.');
-  }
+  const credentials = await getClientCredentials();
+  const baseUrl = getApiBaseUrl();
 
   let response: Response;
 
@@ -44,9 +40,7 @@ async function request(
         method,
         headers: {
           'Content-Type': 'application/json',
-          'X-Client-Id': clientId,
-          'X-Auth-Key': authKey,
-          'X-Kek': kek,
+          ...getAuthHeaders(credentials, true),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
       },

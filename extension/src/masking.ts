@@ -1,4 +1,4 @@
-import type { IconName } from "./components/Icon";
+import type { IconName } from "./components/icon";
 
 export type MaskTypeId =
   | "name"
@@ -26,7 +26,7 @@ export type ManualMask = {
   type: MaskTypeId;
   label: string;
   maskCode: string;
-  remember: boolean;
+  shouldRemember: boolean;
 };
 
 export const MASK_DEFINITIONS: MaskDefinition[] = [

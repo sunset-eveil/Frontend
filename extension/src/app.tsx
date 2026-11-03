@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { RegistrationScreen } from './components/registration-screen';
 import { getRegistrationMode, type RegistrationMode } from './registration';
-import { PreviewPage } from './PreviewPage';
+import { PreviewPage } from './preview-page';
 
 export default function App(): ReactElement | null {
   const [mode, setMode] = useState<RegistrationMode | 'loading'>('loading');

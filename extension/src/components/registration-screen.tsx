@@ -1,8 +1,8 @@
 import { useState, type FormEvent, type ReactElement } from 'react';
 import styled from '@emotion/styled';
 import { submitPassphrase, type RegistrationMode } from '../registration';
-import { colors } from '../styles/colors';
-import { Button } from './Button';
+import { COLORS } from '../styles/colors';
+import { Button } from './button';
 
 type RegistrationScreenProps = {
   mode: Exclude<RegistrationMode, 'ready'>;
@@ -14,7 +14,7 @@ const Page = styled.main`
   min-height: 100dvh;
   padding: 24px;
   place-items: center;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const Form = styled.form`
@@ -23,9 +23,9 @@ const Form = styled.form`
   gap: 16px;
   width: min(100%, 380px);
   padding: 24px;
-  border: 1px solid ${colors.border};
+  border: 1px solid ${COLORS.border};
   border-radius: 16px;
-  background: ${colors.surface};
+  background: ${COLORS.surface};
 `;
 
 const Title = styled.h1`
@@ -35,7 +35,7 @@ const Title = styled.h1`
 
 const Description = styled.p`
   margin: 0;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
   line-height: 1.5;
 `;
@@ -50,15 +50,15 @@ const Label = styled.label`
 const Input = styled.input`
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid ${colors.border};
+  border: 1px solid ${COLORS.border};
   border-radius: 8px;
-  color: ${colors.text};
-  background: ${colors.surfaceRaised};
+  color: ${COLORS.text};
+  background: ${COLORS.surfaceRaised};
 `;
 
 const ErrorMessage = styled.p`
   margin: 0;
-  color: ${colors.highlightText};
+  color: ${COLORS.highlightText};
   font-size: 13px;
   line-height: 1.5;
 `;

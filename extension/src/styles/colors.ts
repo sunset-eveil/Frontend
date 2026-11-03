@@ -1,4 +1,4 @@
-export const colors = {
+export const COLORS = {
   background: '#0D0D0D',
   sidebar: '#141414',
   sidebarBorder: '#1F1F1F',

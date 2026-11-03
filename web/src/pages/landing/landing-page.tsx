@@ -2,9 +2,9 @@ import styled from '@emotion/styled';
 import type { ReactNode } from 'react';
 import { SiteFooter } from '../../components/site-footer';
 import { SiteHeader } from '../../components/site-header';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { HeroSection } from './hero-section';
 import { ProblemSection } from './problem-section';
 import { ProcessSection } from './process-section';
@@ -13,7 +13,7 @@ import { SolutionSection } from './solution-section';
 import { StartActions } from './start-actions';
 
 const ClosingSection = styled.section`
-  background: ${colors.primaryDeep};
+  background: ${COLORS.primaryDeep};
 `;
 
 const ClosingInner = styled.div`
@@ -26,19 +26,19 @@ const ClosingInner = styled.div`
   padding: 88px 24px;
   text-align: center;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 72px 16px;
   }
 `;
 
 const ClosingTitle = styled.h2`
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 40px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 54px;
   letter-spacing: -1.2px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 28px;
     line-height: 38px;
   }

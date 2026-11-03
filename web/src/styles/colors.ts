@@ -1,4 +1,4 @@
-export const colors = {
+export const COLORS = {
   white: '#FFFFFF',
   primary: '#3538CD',
   primaryDeep: '#2E31B8',
@@ -38,7 +38,7 @@ export const colors = {
   whiteAlpha40: 'rgba(255, 255, 255, 0.4)',
 } as const;
 
-export const shadows = {
+export const SHADOWS = {
   heroCard: '0px 30px 60px -20px rgba(10, 12, 60, 0.55)',
   toast: '0px 16px 30px -10px rgba(0, 0, 0, 0.4)',
   card: '0px 10px 24px -12px rgba(30, 40, 110, 0.25)',

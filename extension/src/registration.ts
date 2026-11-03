@@ -1,3 +1,5 @@
+import { registerClient } from './api/clients';
+
 export type RegistrationMode = 'register' | 'unlock' | 'ready' | 'error';
 
 type RegistrationData = {
@@ -131,38 +133,20 @@ export async function submitPassphrase(
     return;
   }
 
+  const clientId = stored.clientId ?? crypto.randomUUID();
+  const salt = stored.salt ?? toBase64(crypto.getRandomValues(new Uint8Array(16)));
   const data: RegistrationData = {
-    clientId: stored.clientId ?? crypto.randomUUID(),
-    salt: stored.salt ?? toBase64(crypto.getRandomValues(new Uint8Array(16))),
+    clientId,
+    salt,
     isRegistered: false,
   };
   await chrome.storage.local.set({ [LOCAL_KEY]: data });
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
-
-  if (!baseUrl) {
-    throw new RegistrationError('API 서버 주소가 설정되지 않았습니다.');
-  }
-
-  const { kek, authKey } = await deriveKeys(passphrase, data.salt!);
+  const { kek, authKey } = await deriveKeys(passphrase, salt);
   await chrome.storage.session.set({
     [KEK_SESSION_KEY]: kek,
     [AUTH_SESSION_KEY]: authKey,
   });
-  const response = await fetch(`${baseUrl}/api/clients`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId: data.clientId, authKey, kek }),
-  });
-
-  if (response.status === 201 || response.status === 409) {
-    await chrome.storage.local.set({ [LOCAL_KEY]: { ...data, isRegistered: true } });
-    return;
-  }
-
-  if (response.status === 400) {
-    throw new RegistrationError('등록 요청 형식이 올바르지 않습니다.');
-  }
-
-  throw new RegistrationError('클라이언트 등록에 실패했습니다. 다시 시도해 주세요.');
+  await registerClient({ clientId, authKey, kek });
+  await chrome.storage.local.set({ [LOCAL_KEY]: { ...data, isRegistered: true } });
 }

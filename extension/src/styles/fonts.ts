@@ -1,6 +1,6 @@
 import 'pretendard/dist/web/static/pretendard.css';
 
-export const fonts = {
+export const FONTS = {
   family: 'Pretendard, sans-serif',
   weight: { regular: 400, medium: 500, semibold: 600, bold: 700 },
   size: { caption: 12, body: 14, editor: 16, subtitle: 18, title: 20, heading: 30 },

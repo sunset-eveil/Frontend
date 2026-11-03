@@ -5,14 +5,14 @@ import { ChatgptMark } from '../../components/chatgpt-mark';
 import { MaskedToken } from '../../components/masked-token';
 import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
-import { colors, shadows } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS, SHADOWS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 const MASK_TYPES: readonly string[] = ['이름', '전화번호', '주민등록번호', '이메일', '계좌·카드번호', '주소'];
 
 const Section = styled.section`
-  background: ${colors.white};
+  background: ${COLORS.white};
 `;
 
 const Intro = styled.div`
@@ -20,13 +20,13 @@ const Intro = styled.div`
   margin: 0 auto;
   padding: 112px 24px 41px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 80px 16px 24px;
   }
 `;
 
 const FeatureBand = styled.div<{ isTinted?: boolean }>`
-  background: ${({ isTinted }) => (isTinted ? colors.background : 'transparent')};
+  background: ${({ isTinted }) => (isTinted ? COLORS.background : 'transparent')};
   padding-top: ${({ isTinted }) => (isTinted ? 40 : 0)}px;
 `;
 
@@ -38,7 +38,7 @@ const Feature = styled.div<{ padding: number }>`
   margin: 0 auto;
   padding: ${({ padding }) => padding}px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     flex-direction: column;
     gap: 32px;
     align-items: stretch;
@@ -53,33 +53,33 @@ const FeatureCopy = styled.div`
   gap: 16px;
   min-width: 0;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     order: -1;
   }
 `;
 
 const FeatureLabel = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const FeatureTitle = styled.h3`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 30px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 42px;
   letter-spacing: -0.9px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 24px;
     line-height: 34px;
   }
 `;
 
 const FeatureText = styled.p`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 28px;
 `;
@@ -92,9 +92,9 @@ const Visual = styled.div<{ tone: 'light' | 'deep' }>`
   min-width: 0;
   padding: 36px;
   border-radius: 20px;
-  background: ${({ tone }) => (tone === 'deep' ? colors.surfaceBlueDeep : colors.surfaceBlue)};
+  background: ${({ tone }) => (tone === 'deep' ? COLORS.surfaceBlueDeep : COLORS.surfaceBlue)};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 20px;
   }
 `;
@@ -105,15 +105,15 @@ const DetectCard = styled.div`
   gap: 14px;
   padding: 22px;
   border-radius: 14px;
-  background: ${colors.white};
-  box-shadow: ${shadows.card};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.card};
 `;
 
 const DetectHeader = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
@@ -135,9 +135,9 @@ const DetectItem = styled.button<{ isOn: boolean }>`
   padding: 10px 12px;
   border: none;
   border-radius: 8px;
-  background: ${({ isOn }) => (isOn ? colors.background : colors.white)};
-  box-shadow: ${({ isOn }) => (isOn ? 'none' : `inset 0 0 0 1px ${colors.divider}`)};
-  color: ${({ isOn }) => (isOn ? colors.heading : colors.muted)};
+  background: ${({ isOn }) => (isOn ? COLORS.background : COLORS.white)};
+  box-shadow: ${({ isOn }) => (isOn ? 'none' : `inset 0 0 0 1px ${COLORS.divider}`)};
+  color: ${({ isOn }) => (isOn ? COLORS.heading : COLORS.muted)};
   font-size: 14px;
   line-height: normal;
   text-align: left;
@@ -147,17 +147,17 @@ const DetectItem = styled.button<{ isOn: boolean }>`
     color 0.15s ease;
 
   &:hover {
-    background: ${colors.tile};
+    background: ${COLORS.tile};
   }
 
   &:focus-visible {
-    outline: 2px solid ${colors.primary};
+    outline: 2px solid ${COLORS.primary};
     outline-offset: 1px;
   }
 `;
 
 const DetectHint = styled.span`
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 12px;
   line-height: normal;
 `;
@@ -174,16 +174,16 @@ const Bubble = styled.div<{ isMine?: boolean }>`
   max-width: 96%;
   padding: 13px 16px 14px;
   border-radius: ${({ isMine }) => (isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px')};
-  background: ${({ isMine }) => (isMine ? colors.primary : colors.white)};
-  box-shadow: ${({ isMine }) => (isMine ? shadows.bubbleStrong : shadows.bubble)};
+  background: ${({ isMine }) => (isMine ? COLORS.primary : COLORS.white)};
+  box-shadow: ${({ isMine }) => (isMine ? SHADOWS.bubbleStrong : SHADOWS.bubble)};
   font-size: 14px;
   line-height: 22.4px;
 `;
 
 const BubbleLabel = styled.span<{ isMine?: boolean }>`
-  color: ${({ isMine }) => (isMine ? colors.answerLabel : colors.muted)};
+  color: ${({ isMine }) => (isMine ? COLORS.answerLabel : COLORS.muted)};
   font-size: 12px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: 19.2px;
 `;
 
@@ -201,20 +201,20 @@ const Node = styled.div<{ isDark?: boolean }>`
   align-items: center;
   padding: 18px;
   border-radius: 14px;
-  background: ${({ isDark }) => (isDark ? colors.navy : colors.white)};
-  box-shadow: ${({ isDark }) => (isDark ? 'none' : shadows.card)};
+  background: ${({ isDark }) => (isDark ? COLORS.navy : COLORS.white)};
+  box-shadow: ${({ isDark }) => (isDark ? 'none' : SHADOWS.card)};
   text-align: center;
 `;
 
 const NodeTitle = styled.span<{ isDark?: boolean }>`
-  color: ${({ isDark }) => (isDark ? colors.white : colors.heading)};
+  color: ${({ isDark }) => (isDark ? COLORS.white : COLORS.heading)};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const NodeCaption = styled.span<{ isDark?: boolean }>`
-  color: ${({ isDark }) => (isDark ? colors.subtle : colors.secondary)};
+  color: ${({ isDark }) => (isDark ? COLORS.subtle : COLORS.secondary)};
   font-size: 12px;
   line-height: 18px;
 `;
@@ -229,10 +229,10 @@ const FlowArrow = styled.div`
 const FlowPill = styled.span`
   padding: 4px 8px;
   border-radius: 999px;
-  background: ${colors.white};
-  color: ${colors.primary};
+  background: ${COLORS.white};
+  color: ${COLORS.primary};
   font-size: 12px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
   white-space: nowrap;
 `;
@@ -256,7 +256,7 @@ function DetectPanel(): ReactNode {
     <DetectCard>
       <DetectHeader>
         <span>감지 항목</span>
-        <span aria-live="polite" css={{ color: enabled.size > 0 ? colors.primary : colors.muted }}>
+        <span aria-live="polite" css={{ color: enabled.size > 0 ? COLORS.primary : COLORS.muted }}>
           {enabled.size > 0 ? `${enabled.size}종 보호 중` : '보호 꺼짐'}
         </span>
       </DetectHeader>
@@ -266,7 +266,7 @@ function DetectPanel(): ReactNode {
           return (
             <li key={type}>
               <DetectItem type="button" isOn={isOn} aria-pressed={isOn} onClick={() => toggle(type)}>
-                {isOn ? <CheckCircle size={18} color={colors.primary} /> : <Circle size={18} color={colors.muted} />}
+                {isOn ? <CheckCircle size={18} color={COLORS.primary} /> : <Circle size={18} color={COLORS.muted} />}
                 {type}
               </DetectItem>
             </li>
@@ -318,7 +318,7 @@ export function SolutionSection(): ReactNode {
             <BubbleRow align="flex-start">
               <Bubble>
                 <BubbleLabel>ChatGPT가 받은 답변</BubbleLabel>
-                <span css={{ color: colors.body }}>
+                <span css={{ color: COLORS.body }}>
                   <MaskedToken size="small" css={{ marginLeft: 0 }}>
                     이름_1
                   </MaskedToken>
@@ -327,12 +327,12 @@ export function SolutionSection(): ReactNode {
               </Bubble>
             </BubbleRow>
             <BubbleRow align="center">
-              <ArrowDown size={22} color={colors.primary} />
+              <ArrowDown size={22} color={COLORS.primary} />
             </BubbleRow>
             <BubbleRow align="flex-end">
               <Bubble isMine>
                 <BubbleLabel isMine>내 화면에 보이는 답변</BubbleLabel>
-                <span css={{ color: colors.white }}>
+                <span css={{ color: COLORS.white }}>
                   <strong>김민지</strong>님의 이력서를 이렇게 다듬어 봤어요.
                 </span>
               </Bubble>
@@ -362,16 +362,16 @@ export function SolutionSection(): ReactNode {
         <Visual tone="light" aria-hidden>
           <Flow>
             <Node>
-              <Monitor size={30} color={colors.primary} />
+              <Monitor size={30} color={COLORS.primary} />
               <NodeTitle>내 브라우저</NodeTitle>
               <NodeCaption>원본 보관</NodeCaption>
             </Node>
             <FlowArrow>
               <FlowPill>가명만</FlowPill>
-              <ArrowRight size={20} color={colors.primary} />
+              <ArrowRight size={20} color={COLORS.primary} />
             </FlowArrow>
             <Node isDark>
-              <ChatgptMark size={30} color={colors.mint} />
+              <ChatgptMark size={30} color={COLORS.mint} />
               <NodeTitle isDark>ChatGPT</NodeTitle>
               <NodeCaption isDark>
                 개인정보 없는

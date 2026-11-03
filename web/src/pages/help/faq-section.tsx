@@ -1,9 +1,9 @@
 import styled from '@emotion/styled';
 import { CaretDown } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { FAQ_CATEGORIES, type FaqCategory, type FaqItem } from './faq-data';
 
 type FaqSectionProps = {
@@ -15,7 +15,7 @@ type FaqSectionProps = {
 
 const Section = styled.section`
   scroll-margin-top: 64px;
-  background: ${colors.white};
+  background: ${COLORS.white};
 `;
 
 const Inner = styled.div`
@@ -26,7 +26,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 88px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 64px 16px;
   }
 `;
@@ -38,16 +38,16 @@ const Heading = styled.div`
 `;
 
 const Eyebrow = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const Title = styled.h2`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 34px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: normal;
   letter-spacing: -1.02px;
 `;
@@ -60,28 +60,28 @@ const Filters = styled.div`
 
 const FilterButton = styled.button<{ isActive: boolean }>`
   padding: 10px 16px;
-  border: 1px solid ${({ isActive }) => (isActive ? colors.heading : colors.border)};
+  border: 1px solid ${({ isActive }) => (isActive ? COLORS.heading : COLORS.border)};
   border-radius: 999px;
-  background: ${({ isActive }) => (isActive ? colors.heading : colors.white)};
-  color: ${({ isActive }) => (isActive ? colors.white : colors.label)};
+  background: ${({ isActive }) => (isActive ? COLORS.heading : COLORS.white)};
+  color: ${({ isActive }) => (isActive ? COLORS.white : COLORS.label)};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 
   &:hover {
-    border-color: ${colors.heading};
+    border-color: ${COLORS.heading};
   }
 `;
 
 const List = styled.ul`
   margin: 0;
   padding: 0;
-  border-top: 1px solid ${colors.heading};
+  border-top: 1px solid ${COLORS.heading};
   list-style: none;
 `;
 
 const Item = styled.li`
-  border-bottom: 1px solid ${colors.divider};
+  border-bottom: 1px solid ${COLORS.divider};
 `;
 
 const QuestionButton = styled.button`
@@ -98,17 +98,17 @@ const QuestionButton = styled.button`
 const Mark = styled.span<{ isAnswer?: boolean }>`
   flex-shrink: 0;
   width: 14px;
-  color: ${({ isAnswer }) => (isAnswer ? colors.muted : colors.primary)};
+  color: ${({ isAnswer }) => (isAnswer ? COLORS.muted : COLORS.primary)};
   font-size: 18px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: normal;
 `;
 
 const QuestionText = styled.span`
   flex: 1;
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 16px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: 24px;
 `;
 
@@ -116,13 +116,13 @@ const CategoryTag = styled.span`
   flex-shrink: 0;
   padding: 4px 10px;
   border-radius: 999px;
-  background: ${colors.background};
-  color: ${colors.muted};
+  background: ${COLORS.background};
+  color: ${COLORS.muted};
   font-size: 12px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     display: none;
   }
 `;
@@ -144,15 +144,15 @@ const AnswerText = styled.p`
   flex: 1;
   padding: 15px 18px 17px;
   border-radius: 10px;
-  background: ${colors.surface};
-  color: ${colors.secondary};
+  background: ${COLORS.surface};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 28.8px;
 `;
 
 const Empty = styled.p`
   padding: 40px 4px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 16px;
   text-align: center;
 `;
@@ -201,7 +201,7 @@ export function FaqSection({ items, category, onCategoryChange, hasQuery }: FaqS
                   <QuestionText>{question}</QuestionText>
                   <CategoryTag>{itemCategory}</CategoryTag>
                   <Caret isOpen={isOpen} aria-hidden>
-                    <CaretDown size={18} color={colors.muted} />
+                    <CaretDown size={18} color={COLORS.muted} />
                   </Caret>
                 </QuestionButton>
                 {isOpen && (

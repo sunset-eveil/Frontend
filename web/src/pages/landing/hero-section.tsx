@@ -3,15 +3,15 @@ import { keyframes } from '@emotion/react';
 import { ArrowsClockwise, ShieldCheck, WarningCircle } from '@phosphor-icons/react';
 import { Fragment, useState, type ReactNode } from 'react';
 import { MaskedToken } from '../../components/masked-token';
-import { colors, shadows } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS, SHADOWS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { StartActions } from './start-actions';
 
 const Section = styled.section`
   position: relative;
   overflow: hidden;
-  background: ${colors.primaryDeep};
+  background: ${COLORS.primaryDeep};
 `;
 
 const Ring = styled.div<{ diameter: number; offset: number; alpha: string }>`
@@ -34,7 +34,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 96px 24px 144px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     flex-direction: column;
     gap: 48px;
     align-items: stretch;
@@ -56,22 +56,22 @@ const Badge = styled.span`
   align-items: center;
   padding: 8px 14px;
   border-radius: 999px;
-  background: ${colors.whiteAlpha14};
-  color: ${colors.white};
+  background: ${COLORS.whiteAlpha14};
+  color: ${COLORS.white};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
 const Title = styled.h1`
   margin-top: 27px;
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 60px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 72px;
   letter-spacing: -2.1px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 38px;
     line-height: 48px;
     letter-spacing: -1.3px;
@@ -81,7 +81,7 @@ const Title = styled.h1`
 const Lead = styled.p`
   max-width: 440px;
   margin: 27px 0 28px;
-  color: ${colors.heroText};
+  color: ${COLORS.heroText};
   font-size: 18px;
   line-height: 30.6px;
 `;
@@ -95,8 +95,8 @@ const Preview = styled.div`
 const ChatWindow = styled.div`
   overflow: hidden;
   border-radius: 18px;
-  background: ${colors.white};
-  box-shadow: ${shadows.heroCard};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.heroCard};
 `;
 
 const WindowBar = styled.div`
@@ -104,19 +104,19 @@ const WindowBar = styled.div`
   gap: 8px;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid ${colors.divider};
+  border-bottom: 1px solid ${COLORS.divider};
 `;
 
 const WindowDot = styled.span`
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background: ${colors.track};
+  background: ${COLORS.track};
 `;
 
 const WindowTitle = styled.span`
   padding-left: 10px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
   line-height: normal;
 `;
@@ -126,23 +126,23 @@ const WindowBody = styled.div`
   flex-direction: column;
   gap: 10px;
   padding: 22px 22px 18px;
-  background: ${colors.surface};
+  background: ${COLORS.surface};
 `;
 
 const InputLabel = styled.span`
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 12px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
 const InputBox = styled.p`
   min-height: 150px;
   padding: 17px 18px;
-  border: 1px solid ${colors.track};
+  border: 1px solid ${COLORS.track};
   border-radius: 12px;
-  background: ${colors.white};
-  color: ${colors.body};
+  background: ${COLORS.white};
+  color: ${COLORS.body};
   font-size: 16px;
   line-height: 30.4px;
 `;
@@ -160,10 +160,10 @@ const Status = styled.span<{ isProtected: boolean }>`
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  color: ${({ isProtected }) => (isProtected ? colors.primaryDeep : colors.danger)};
+  color: ${({ isProtected }) => (isProtected ? COLORS.primaryDeep : COLORS.danger)};
   transition: color 0.2s ease;
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
@@ -175,13 +175,13 @@ const ToggleButton = styled.button`
   border: none;
   border-radius: 999px;
   background: none;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 
   &:focus-visible {
-    outline: 2px solid ${colors.primary};
+    outline: 2px solid ${COLORS.primary};
     outline-offset: 2px;
   }
 `;
@@ -191,7 +191,7 @@ const Toggle = styled.span<{ isOn: boolean }>`
   width: 42px;
   height: 24px;
   border-radius: 999px;
-  background: ${({ isOn }) => (isOn ? colors.primary : colors.toggleOff)};
+  background: ${({ isOn }) => (isOn ? COLORS.primary : COLORS.toggleOff)};
   transition: background-color 0.2s ease;
 
   &::after {
@@ -202,7 +202,7 @@ const Toggle = styled.span<{ isOn: boolean }>`
     width: 18px;
     height: 18px;
     border-radius: 9px;
-    background: ${colors.white};
+    background: ${COLORS.white};
     box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2);
     transform: translateX(${({ isOn }) => (isOn ? 18 : 0)}px);
     transition: transform 0.2s ease;
@@ -215,7 +215,7 @@ const Toggle = styled.span<{ isOn: boolean }>`
   }
 `;
 
-const swapIn = keyframes`
+const SWAP_IN = keyframes`
   from {
     opacity: 0;
     transform: translateY(3px);
@@ -227,7 +227,7 @@ const swapIn = keyframes`
 `;
 
 const Swap = styled.span`
-  animation: ${swapIn} 0.25s ease;
+  animation: ${SWAP_IN} 0.25s ease;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -248,10 +248,10 @@ const Toast = styled.div<{ isVisible: boolean }>`
   align-items: center;
   padding: 14px 18px;
   border-radius: 12px;
-  background: ${colors.navy};
-  box-shadow: ${shadows.toast};
+  background: ${COLORS.navy};
+  box-shadow: ${SHADOWS.toast};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     left: 12px;
   }
 `;
@@ -263,7 +263,7 @@ const ToastIcon = styled.span`
   width: 34px;
   height: 34px;
   border-radius: 17px;
-  background: ${colors.mint};
+  background: ${COLORS.mint};
 `;
 
 const ToastText = styled.div`
@@ -274,13 +274,13 @@ const ToastText = styled.div`
 `;
 
 const ToastTitle = styled.span`
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
 `;
 
 const ToastCaption = styled.span`
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
   font-size: 12px;
 `;
 
@@ -305,12 +305,12 @@ export function HeroSection(): ReactNode {
 
   return (
     <Section>
-      <Ring diameter={560} offset={160} alpha={colors.whiteAlpha12} />
-      <Ring diameter={360} offset={60} alpha={colors.whiteAlpha10} />
+      <Ring diameter={560} offset={160} alpha={COLORS.whiteAlpha12} />
+      <Ring diameter={360} offset={60} alpha={COLORS.whiteAlpha10} />
       <Inner>
         <Copy>
           <Badge>
-            <ShieldCheck size={16} color={colors.white} />
+            <ShieldCheck size={16} color={COLORS.white} />
             ChatGPT 개인정보 유출 감지
           </Badge>
           <Title>
@@ -350,12 +350,12 @@ export function HeroSection(): ReactNode {
               <Status isProtected={isProtected} aria-live="polite">
                 {isProtected ? (
                   <>
-                    <ShieldCheck size={18} color={colors.primaryDeep} />
+                    <ShieldCheck size={18} color={COLORS.primaryDeep} />
                     {MASKED_COUNT}건 가림 완료 · 안심하고 보내세요
                   </>
                 ) : (
                   <>
-                    <WarningCircle size={18} color={colors.danger} />
+                    <WarningCircle size={18} color={COLORS.danger} />
                     보호 꺼짐 · 개인정보 {MASKED_COUNT}건이 그대로 보내져요
                   </>
                 )}
@@ -374,7 +374,7 @@ export function HeroSection(): ReactNode {
 
           <Toast isVisible={isProtected} aria-hidden>
             <ToastIcon>
-              <ArrowsClockwise size={18} color={colors.navy} />
+              <ArrowsClockwise size={18} color={COLORS.navy} />
             </ToastIcon>
             <ToastText>
               <ToastTitle>답변은 원래 정보로 자동 복원</ToastTitle>

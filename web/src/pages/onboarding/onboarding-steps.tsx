@@ -18,46 +18,46 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import { useMemo, useState, type ReactNode } from 'react';
-import { button } from '../../components/button';
+import { BUTTON } from '../../components/button';
 import { ChatgptMark } from '../../components/chatgpt-mark';
 import { Logo } from '../../components/logo';
 import { MaskedToken } from '../../components/masked-token';
 import { FloatingPanel, SplitCard } from '../../components/split-card';
 import { CHATGPT_URL } from '../../constants/links';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { maskDemoText } from './demo-masking';
 
 const Title = styled.h1<{ isCentered?: boolean }>`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 36px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 46.8px;
   letter-spacing: -1.08px;
   text-align: ${({ isCentered }) => (isCentered ? 'center' : 'left')};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 28px;
     line-height: 38px;
   }
 `;
 
 const StepTitle = styled.h1`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 32px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 43.2px;
   letter-spacing: -0.96px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 26px;
     line-height: 36px;
   }
 `;
 
 const Lead = styled.p<{ isCentered?: boolean }>`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 27.2px;
   text-align: ${({ isCentered }) => (isCentered ? 'center' : 'left')};
@@ -69,7 +69,7 @@ const Content = styled.div<{ gap: number }>`
   gap: ${({ gap }) => gap}px;
   padding: 47px 40px 48px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 32px 20px;
   }
 `;
@@ -90,7 +90,7 @@ const CheckBadge = styled.span`
   height: 56px;
   margin-bottom: 19px;
   border-radius: 28px;
-  background: ${colors.chip};
+  background: ${COLORS.chip};
 `;
 
 const BrowserBar = styled.div`
@@ -99,7 +99,7 @@ const BrowserBar = styled.div`
   align-items: center;
   justify-content: flex-end;
   padding: 10px 14px;
-  border-bottom: 1px solid ${colors.track};
+  border-bottom: 1px solid ${COLORS.track};
   background: #f1f2f6;
 `;
 
@@ -110,8 +110,8 @@ const PuzzleButton = styled.span`
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: ${colors.chip};
-  box-shadow: 0 0 0 2px ${colors.primary};
+  background: ${COLORS.chip};
+  box-shadow: 0 0 0 2px ${COLORS.primary};
 `;
 
 const ExtensionMenu = styled.div`
@@ -123,9 +123,9 @@ const ExtensionMenu = styled.div`
 
 const MenuLabel = styled.span`
   padding: 6px 8px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 12px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
@@ -136,7 +136,7 @@ const MenuItem = styled.div`
   justify-content: space-between;
   padding: 10px 8px;
   border-radius: 8px;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 type StepInstalledProps = {
@@ -151,7 +151,7 @@ export function StepInstalled({ footer }: StepInstalledProps): ReactNode {
       copy={
         <>
           <CheckBadge>
-            <Check size={28} color={colors.primary} />
+            <Check size={28} color={COLORS.primary} />
           </CheckBadge>
           <Title>
             설치가 끝났어요!
@@ -160,7 +160,7 @@ export function StepInstalled({ footer }: StepInstalledProps): ReactNode {
           </Title>
           <Lead css={{ marginTop: 21, fontSize: 16, lineHeight: '28px' }}>
             먼저 브라우저 오른쪽 위 퍼즐 아이콘을 눌러 Eveil을{' '}
-            <strong css={{ color: colors.heading, fontWeight: fonts.weight.bold }}>고정</strong>해 주세요. 보호 상태를
+            <strong css={{ color: COLORS.heading, fontWeight: FONTS.weight.bold }}>고정</strong>해 주세요. 보호 상태를
             언제든 확인할 수 있어요.
           </Lead>
         </>
@@ -168,17 +168,17 @@ export function StepInstalled({ footer }: StepInstalledProps): ReactNode {
       visual={
         <FloatingPanel css={{ borderRadius: 14 }}>
           <BrowserBar>
-            <Star size={18} color={colors.muted} />
+            <Star size={18} color={COLORS.muted} />
             <PuzzleButton>
-              <PuzzlePiece size={18} color={colors.primary} />
+              <PuzzlePiece size={18} color={COLORS.primary} />
             </PuzzleButton>
-            <DotsThreeVertical size={18} color={colors.muted} />
+            <DotsThreeVertical size={18} color={COLORS.muted} />
           </BrowserBar>
           <ExtensionMenu>
             <MenuLabel>확장 프로그램</MenuLabel>
             <MenuItem>
               <Logo width={50} />
-              <PushPin size={18} color={colors.primary} />
+              <PushPin size={18} color={COLORS.primary} />
             </MenuItem>
           </ExtensionMenu>
         </FloatingPanel>
@@ -208,7 +208,7 @@ const MaskGrid = styled.ul`
   padding: 0;
   list-style: none;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -219,16 +219,16 @@ const MaskCard = styled.li`
   gap: 16px;
   padding: 20px;
   border-radius: 16px;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const MaskHeader = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
@@ -239,7 +239,7 @@ const MaskIcon = styled.span`
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: ${colors.white};
+  background: ${COLORS.white};
 `;
 
 const MaskExampleRow = styled.div`
@@ -247,7 +247,7 @@ const MaskExampleRow = styled.div`
   gap: 8px;
   align-items: center;
   min-width: 0;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 14px;
   line-height: 20px;
 `;
@@ -262,7 +262,7 @@ const InlineNote = styled.p`
   display: flex;
   gap: 8px;
   align-items: center;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 14px;
   line-height: normal;
 `;
@@ -279,13 +279,13 @@ export function StepMaskTypes(): ReactNode {
           <MaskCard key={label}>
             <MaskHeader>
               <MaskIcon>
-                <MaskTypeIcon size={20} color={colors.primary} />
+                <MaskTypeIcon size={20} color={COLORS.primary} />
               </MaskIcon>
               {label}
             </MaskHeader>
             <MaskExampleRow>
               <Original>{original}</Original>
-              <ArrowRight size={14} color={colors.muted} css={{ flexShrink: 0 }} />
+              <ArrowRight size={14} color={COLORS.muted} css={{ flexShrink: 0 }} />
               <MaskedToken size="small" css={{ margin: 0, padding: '0 8px', lineHeight: '20px' }}>
                 {token}
               </MaskedToken>
@@ -294,7 +294,7 @@ export function StepMaskTypes(): ReactNode {
         ))}
       </MaskGrid>
       <InlineNote>
-        <ShieldCheck size={18} color={colors.primary} />
+        <ShieldCheck size={18} color={COLORS.primary} />
         원본은 내 기기에만 남고, 답변은 원래 정보로 되돌려 보여 드려요.
       </InlineNote>
     </Content>
@@ -309,7 +309,7 @@ const DemoColumns = styled.div`
   display: flex;
   gap: 16px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     flex-direction: column;
   }
 `;
@@ -323,26 +323,26 @@ const DemoColumn = styled.div`
 `;
 
 const DemoLabel = styled.label`
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
 const DemoInput = styled.textarea`
   height: 238px;
   padding: 15px 16px;
-  border: 1px solid ${colors.border};
+  border: 1px solid ${COLORS.border};
   border-radius: 12px;
-  background: ${colors.white};
-  color: ${colors.heading};
+  background: ${COLORS.white};
+  color: ${COLORS.heading};
   font-size: 16px;
   line-height: 28.8px;
   outline: none;
   resize: none;
 
   &:focus {
-    border-color: ${colors.primary};
+    border-color: ${COLORS.primary};
   }
 `;
 
@@ -351,8 +351,8 @@ const DemoOutput = styled.p`
   overflow-y: auto;
   padding: 15px 16px;
   border-radius: 12px;
-  background: ${colors.surfaceBlue};
-  color: ${colors.body};
+  background: ${COLORS.surfaceBlue};
+  color: ${COLORS.body};
   font-size: 16px;
   line-height: 30.4px;
   white-space: pre-wrap;
@@ -363,9 +363,9 @@ const DemoStatus = styled.p<{ tone: 'danger' | 'muted' }>`
   display: flex;
   gap: ${({ tone }) => (tone === 'danger' ? 8 : 6)}px;
   align-items: center;
-  color: ${({ tone }) => (tone === 'danger' ? colors.danger : colors.secondary)};
+  color: ${({ tone }) => (tone === 'danger' ? COLORS.danger : COLORS.secondary)};
   font-size: 14px;
-  font-weight: ${({ tone }) => (tone === 'danger' ? fonts.weight.semibold : fonts.weight.regular)};
+  font-weight: ${({ tone }) => (tone === 'danger' ? FONTS.weight.semibold : FONTS.weight.regular)};
   line-height: normal;
 `;
 
@@ -386,12 +386,12 @@ export function StepTry(): ReactNode {
           <DemoStatus tone={count > 0 ? 'danger' : 'muted'} aria-live="polite">
             {count > 0 ? (
               <>
-                <WarningCircle size={18} color={colors.danger} />
+                <WarningCircle size={18} color={COLORS.danger} />
                 개인정보 {count}건이 감지됐어요
               </>
             ) : (
               <>
-                <ShieldCheck size={18} color={colors.primary} />
+                <ShieldCheck size={18} color={COLORS.primary} />
                 감지된 개인정보가 없어요
               </>
             )}
@@ -411,7 +411,7 @@ export function StepTry(): ReactNode {
             )}
           </DemoOutput>
           <DemoStatus tone="muted">
-            <ArrowsClockwise size={14} color={colors.secondary} />
+            <ArrowsClockwise size={14} color={COLORS.secondary} />
             답변이 오면 원래 정보로 되돌려 보여 드려요
           </DemoStatus>
         </DemoColumn>
@@ -429,7 +429,7 @@ const ReadyContent = styled.div`
   align-items: center;
   padding: 64px 40px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 48px 20px;
   }
 `;
@@ -441,15 +441,15 @@ const ReadyBadge = styled.span`
   width: 88px;
   height: 88px;
   border-radius: 44px;
-  background: ${colors.primary};
-  box-shadow: 0 0 0 12px ${colors.tile};
+  background: ${COLORS.primary};
+  box-shadow: 0 0 0 12px ${COLORS.tile};
 `;
 
 export function StepReady(): ReactNode {
   return (
     <ReadyContent>
       <ReadyBadge>
-        <ShieldCheck size={42} color={colors.white} />
+        <ShieldCheck size={42} color={COLORS.white} />
       </ReadyBadge>
       <Title isCentered>
         준비 완료!
@@ -457,8 +457,8 @@ export function StepReady(): ReactNode {
         이제 안심하고 ChatGPT를 쓰세요
       </Title>
       <Lead isCentered>개인정보를 자동으로 가려 드릴게요. 입력창 옆 Eveil 표시로 상태를 확인할 수 있어요.</Lead>
-      <a href={CHATGPT_URL} target="_blank" rel="noreferrer" css={[button.primaryLarge, { marginTop: 8, padding: '16px 28px' }]}>
-        <ChatgptMark size={18} color={colors.white} />
+      <a href={CHATGPT_URL} target="_blank" rel="noreferrer" css={[BUTTON.primaryLarge, { marginTop: 8, padding: '16px 28px' }]}>
+        <ChatgptMark size={18} color={COLORS.white} />
         ChatGPT 열기
       </a>
     </ReadyContent>

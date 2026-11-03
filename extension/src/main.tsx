@@ -2,15 +2,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Global } from '@emotion/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { globalStyles } from './styles/global';
-import App from './App';
+import { GLOBAL_STYLES } from './styles/global';
+import App from './app';
 
 const QUERY_CLIENT = new QueryClient();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={QUERY_CLIENT}>
-      <Global styles={globalStyles} />
+      <Global styles={GLOBAL_STYLES} />
       <App />
     </QueryClientProvider>
   </StrictMode>,

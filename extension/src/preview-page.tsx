@@ -1,19 +1,21 @@
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from "@emotion/styled";
 import bgImage from "./assets/bg.png";
-import { ComparisonPanel } from "./components/ComparisonPanel";
-import { EveilButton } from "./components/EveilButton";
-import { Icon, type IconName } from "./components/Icon";
-import { InputPanel } from "./components/InputPanel";
-import { MaskTypeItem } from "./components/MaskTypeItem";
-import { MaskChip, PrivacyHighlight } from "./components/PrivacyText";
+import { ComparisonPanel } from "./components/comparison-panel";
+import { EveilButton } from "./components/eveil-button";
+import { Icon, type IconName } from "./components/icon";
+import { InputPanel } from "./components/input-panel";
+import { MaskTypeItem } from "./components/mask-type-item";
+import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
 import {
   MASK_DEFINITIONS,
   type ManualMask,
   type MaskDefinition,
+  type MaskTypeId,
 } from "./masking";
-import { colors } from "./styles/colors";
+import { COLORS } from "./styles/colors";
 import { getOrCreateChatId } from './chat-id';
 import { getChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
@@ -38,7 +40,21 @@ type MaskSegment = {
   definition: MaskDefinition;
   manual?: ManualMask;
   mapping?: ChatMapping;
-  reveal?: boolean;
+  isRevealed?: boolean;
+};
+type MaskingVariables = {
+  chatId: string;
+  text: string;
+  enabledTypes: MaskTypeId[];
+};
+type MappingVariables = {
+  chatId: string;
+  value: string;
+  type: MaskTypeId;
+};
+type DeleteMappingVariables = {
+  chatId: string;
+  maskCode: string;
 };
 
 const Page = styled.main`
@@ -46,8 +62,8 @@ const Page = styled.main`
   width: 100%;
   min-height: 100dvh;
   overflow-x: hidden;
-  color: ${colors.chatText};
-  background-color: ${colors.background};
+  color: ${COLORS.chatText};
+  background-color: ${COLORS.background};
   background-image: url(${bgImage});
   background-position: center top;
   background-repeat: no-repeat;
@@ -84,8 +100,8 @@ const Workspace = styled.div`
 const Heading = styled.h1`
   margin: 0 0 28px;
   padding: 2px 12px;
-  color: ${colors.heading};
-  background: ${colors.background};
+  color: ${COLORS.heading};
+  background: ${COLORS.background};
   font-size: clamp(24px, 2.5vw, 30px);
   font-weight: 500;
   line-height: 33.6px;
@@ -96,10 +112,10 @@ const WorkspaceContent = styled.div`
   width: min(760px, 100%);
 `;
 
-const SendStatus = styled.p<{ error?: boolean }>`
+const SendStatus = styled.p<{ isError?: boolean }>`
   width: min(760px, 100%);
   margin: 12px 0 0;
-  color: ${({ error }) => (error ? "#EF625D" : colors.muted)};
+  color: ${({ isError }) => (isError ? "#EF625D" : COLORS.muted)};
   font-size: 14px;
   line-height: 1.5;
 `;
@@ -112,9 +128,9 @@ const Prompt = styled.div`
   width: 100%;
   height: 58px;
   padding: 0 10px 0 16px;
-  border: 1px solid ${colors.chatInputBorder};
+  border: 1px solid ${COLORS.chatInputBorder};
   border-radius: 28px;
-  background: ${colors.chatInput};
+  background: ${COLORS.chatInput};
 `;
 
 const PromptInput = styled.input`
@@ -123,12 +139,12 @@ const PromptInput = styled.input`
   padding: 0;
   border: 0;
   outline: 0;
-  color: ${colors.text};
+  color: ${COLORS.text};
   background: transparent;
   font-size: 16px;
 
   &::placeholder {
-    color: ${colors.chatMuted};
+    color: ${COLORS.chatMuted};
     opacity: 1;
   }
 `;
@@ -138,7 +154,7 @@ const PromptMode = styled.span`
   align-items: center;
   gap: 5px;
   margin: 0;
-  color: ${colors.chatText};
+  color: ${COLORS.chatText};
   font-size: 16px;
 `;
 
@@ -156,7 +172,7 @@ const SendButton = styled.button`
   padding: 6px;
   border: 0;
   border-radius: 50%;
-  background: ${colors.chatButton};
+  background: ${COLORS.chatButton};
 `;
 
 const Suggestions = styled.div`
@@ -174,13 +190,13 @@ const SuggestionButton = styled.button`
   padding: 12px;
   border: 0;
   border-radius: 12px;
-  color: ${colors.chatText};
+  color: ${COLORS.chatText};
   background: transparent;
   font-size: 16px;
   text-align: left;
 
   &:hover {
-    background: ${colors.chatSelected};
+    background: ${COLORS.chatSelected};
   }
 `;
 
@@ -198,13 +214,13 @@ function countOccurrences(text: string, query: string): number {
   return text.split(query).length - 1;
 }
 
-export function PreviewPage() {
+export function PreviewPage(): ReactNode {
   const queryClient = useQueryClient();
   const [chatId, setChatId] = useState<string>();
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("button");
-  const [showHint, setShowHint] = useState(
+  const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
   const [value, setValue] = useState("");
@@ -212,10 +228,9 @@ export function PreviewPage() {
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
   const [manualMasks, setManualMasks] = useState<ManualMask[]>([]);
-  const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<{
     message: string;
-    error: boolean;
+    isError: boolean;
   } | null>(null);
   const mappingsQuery = useQuery({
     queryKey: ['chat-mappings', chatId],
@@ -223,6 +238,27 @@ export function PreviewPage() {
     enabled: false,
     staleTime: Infinity,
   });
+  const createMaskingMutation = useMutation({
+    mutationFn: ({ chatId, text, enabledTypes }: MaskingVariables) =>
+      createMasking(chatId, text, enabledTypes),
+    onSuccess: (_result, { chatId }) =>
+      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+  });
+  const putMappingMutation = useMutation({
+    mutationFn: ({ chatId, value, type }: MappingVariables) =>
+      putMapping(chatId, value, type),
+    onSuccess: (_result, { chatId }) =>
+      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+  });
+  const deleteMappingMutation = useMutation({
+    mutationFn: ({ chatId, maskCode }: DeleteMappingVariables) =>
+      deleteMapping(chatId, maskCode),
+    onSuccess: (_result, { chatId }) =>
+      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+  });
+  const isSending = createMaskingMutation.isPending ||
+    putMappingMutation.isPending || deleteMappingMutation.isPending ||
+    mappingsQuery.isFetching;
   const activeMappings = maskedValue === value && !mappingsQuery.isStale
     ? mappingsQuery.data
     : undefined;
@@ -293,10 +329,10 @@ export function PreviewPage() {
   }, []);
 
   useEffect(() => {
-    if (showHint) {
+    if (isHintVisible) {
       localStorage.setItem("eveil-hint-shown", "true");
     }
-  }, [showHint]);
+  }, [isHintVisible]);
 
   const countMatches = (definition: MaskDefinition): number => {
     if (activeMappings) {
@@ -320,23 +356,21 @@ export function PreviewPage() {
   );
   const count = autoCount + manualMasks.length;
 
-  const removeManualMask = async (id: string) => {
+  const removeManualMask = async (id: string): Promise<void> => {
     const mask = manualMasks.find((item) => item.id === id);
     if (!mask) return;
 
-    setSending(true);
     setSendStatus({
       message: "마스킹 해제를 요청하는 중입니다…",
-      error: false,
+      isError: false,
     });
     try {
       if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
-      await deleteMapping(chatId, mask.maskCode);
-      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
+      await deleteMappingMutation.mutateAsync({ chatId, maskCode: mask.maskCode });
       setManualMasks((previous) => previous.filter((item) => item.id !== id));
       setSendStatus({
         message: "마스킹을 해제했습니다. (HTTP 204)",
-        error: false,
+        isError: false,
       });
     } catch (error) {
       setSendStatus({
@@ -344,31 +378,27 @@ export function PreviewPage() {
           error instanceof Error
             ? error.message
             : "마스킹 해제에 실패했습니다.",
-        error: true,
+        isError: true,
       });
-    } finally {
-      setSending(false);
     }
   };
 
-  const sendForMasking = async () => {
+  const sendForMasking = async (): Promise<void> => {
     if (!value.trim()) {
-      setSendStatus({ message: "마스킹할 내용을 입력해 주세요.", error: true });
+      setSendStatus({ message: "마스킹할 내용을 입력해 주세요.", isError: true });
       return;
     }
-    setSending(true);
-    setSendStatus({ message: "마스킹 API에 요청 중입니다…", error: false });
+    setSendStatus({ message: "마스킹 API에 요청 중입니다…", isError: false });
     try {
       if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
-      await createMasking(
+      await createMaskingMutation.mutateAsync({
         chatId,
-        value,
-        MASK_DEFINITIONS.filter((_, index) => enabled[index]).map(
+        text: value,
+        enabledTypes: MASK_DEFINITIONS.filter((_, index) => enabled[index]).map(
           (definition) => definition.id,
         ),
-      );
+      });
       setMaskedValue(value);
-      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
       try {
         await queryClient.fetchQuery({
           queryKey: ['chat-mappings', chatId],
@@ -378,13 +408,13 @@ export function PreviewPage() {
       } catch {
         setSendStatus({
           message: '마스킹은 완료됐지만 매핑을 불러오지 못했습니다.',
-          error: true,
+          isError: true,
         });
         return;
       }
       setSendStatus({
         message: "마스킹 매핑이 업데이트됐습니다. (HTTP 204)",
-        error: false,
+        isError: false,
       });
     } catch (error) {
       setSendStatus({
@@ -392,24 +422,22 @@ export function PreviewPage() {
           error instanceof Error
             ? error.message
             : "마스킹 요청에 실패했습니다.",
-        error: true,
+        isError: true,
       });
-    } finally {
-      setSending(false);
     }
   };
 
-  const changeView = (nextView: "original" | "masked") => {
+  const changeView = (nextView: "original" | "masked"): void => {
     setView(nextView);
     if (nextView === "masked") {
       void sendForMasking();
     }
   };
 
-  const changeMaskType = async (index: number, checked: boolean): Promise<void> => {
-    if (!checked) {
+  const changeMaskType = async (index: number, isChecked: boolean): Promise<void> => {
+    if (!isChecked) {
       if (!chatId) {
-        setSendStatus({ message: '대화 ID를 확인할 수 없습니다.', error: true });
+        setSendStatus({ message: '대화 ID를 확인할 수 없습니다.', isError: true });
         return;
       }
 
@@ -428,20 +456,20 @@ export function PreviewPage() {
         if (activeChatId.current !== chatId) return;
         setSendStatus({
           message: error instanceof Error ? error.message : '매핑 조회에 실패했습니다.',
-          error: true,
+          isError: true,
         });
         return;
       }
     }
 
     setEnabled((previous) => previous.map((item, itemIndex) => (
-      itemIndex === index ? checked : item
+      itemIndex === index ? isChecked : item
     )));
   };
 
   const addManualMask = async (
     mask: Omit<ManualMask, "id" | "label" | "maskCode">,
-  ) => {
+  ): Promise<void> => {
     const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
 
     if (!definition) {
@@ -451,22 +479,23 @@ export function PreviewPage() {
     const sequence =
       manualMasks.filter((item) => item.type === mask.type).length + 1;
     const maskCode = getMaskCode(mask.type, sequence);
-    setSending(true);
     setSendStatus({
       message: "선택한 마스킹 매핑을 저장하는 중입니다…",
-      error: false,
+      isError: false,
     });
     try {
       if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
-      await putMapping(chatId, mask.text, mask.type);
-      await queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] });
+      await putMappingMutation.mutateAsync({
+        chatId,
+        value: mask.text,
+        type: mask.type,
+      });
     } catch (error) {
       setSendStatus({
         message:
           error instanceof Error ? error.message : "매핑 저장에 실패했습니다.",
-        error: true,
+        isError: true,
       });
-      setSending(false);
       return;
     }
 
@@ -487,12 +516,11 @@ export function PreviewPage() {
     });
     setSendStatus({
       message: "선택한 마스킹 매핑을 저장했습니다. (HTTP 204)",
-      error: false,
+      isError: false,
     });
-    setSending(false);
   };
 
-  const content = (masked: boolean) => {
+  const content = (isMasked: boolean): ReactNode[] => {
     const mappings = activeMappings;
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
@@ -519,7 +547,7 @@ export function PreviewPage() {
           })
         : [],
     );
-    const codeSegments: MaskSegment[] = masked
+    const codeSegments: MaskSegment[] = isMasked
       ? (mappings ?? []).flatMap((mapping) => {
           const definition = MASK_DEFINITIONS.find(
             (item) => item.id.toUpperCase() === mapping.type,
@@ -540,7 +568,7 @@ export function PreviewPage() {
                 end: start + mapping.maskCode.length,
                 definition,
                 mapping,
-                reveal: !enabled[MASK_DEFINITIONS.indexOf(definition)],
+                isRevealed: !enabled[MASK_DEFINITIONS.indexOf(definition)],
               });
             }
             start = value.indexOf(mapping.maskCode, start + mapping.maskCode.length);
@@ -587,7 +615,7 @@ export function PreviewPage() {
       const text = value.slice(segment.start, segment.end);
       const manualId = segment.manual?.id;
       result.push(
-        segment.reveal ? (segment.mapping?.value ?? text) : masked ? (
+        segment.isRevealed ? (segment.mapping?.value ?? text) : isMasked ? (
           <MaskChip
             key={`mask-${index}`}
             icon={segment.definition.chip}
@@ -649,7 +677,7 @@ export function PreviewPage() {
                       setScreen("chat");
                       setShowHint(false);
                     }}
-                    showHint={showHint}
+                    isHintVisible={isHintVisible}
                     onDismissHint={() => setShowHint(false)}
                   />
                 </EveilSlot>
@@ -686,13 +714,13 @@ export function PreviewPage() {
               onExpand={() => setScreen("comparison")}
               onSettings={() => setScreen("comparison")}
               onSend={sendForMasking}
-              sending={sending}
+              isSending={isSending}
             />
           )}
           {screen === "chat" && sendStatus && (
             <SendStatus
-              role={sendStatus.error ? "alert" : "status"}
-              error={sendStatus.error}
+              role={sendStatus.isError ? "alert" : "status"}
+              isError={sendStatus.isError}
             >
               {sendStatus.message}
             </SendStatus>
@@ -718,8 +746,8 @@ export function PreviewPage() {
               label={definition.label}
               icon={definition.icon}
               count={countMatches(definition)}
-              checked={enabled[index]}
-              onChange={(checked) => { void changeMaskType(index, checked); }}
+              isChecked={enabled[index]}
+              onChange={(isChecked) => { void changeMaskType(index, isChecked); }}
             />
           ))}
         />

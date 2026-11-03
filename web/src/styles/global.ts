@@ -1,13 +1,13 @@
 import { css } from '@emotion/react';
-import { colors } from './colors';
-import { fonts } from './fonts';
+import { COLORS } from './colors';
+import { FONTS } from './fonts';
 
-export const globalStyles = css`
+export const GLOBAL_STYLES = css`
   :root {
     color-scheme: light;
-    font-family: ${fonts.family};
-    color: ${colors.heading};
-    background: ${colors.white};
+    font-family: ${FONTS.family};
+    color: ${COLORS.heading};
+    background: ${COLORS.white};
     -webkit-font-smoothing: antialiased;
   }
 
@@ -23,7 +23,7 @@ export const globalStyles = css`
 
   body {
     margin: 0;
-    background: ${colors.white};
+    background: ${COLORS.white};
   }
 
   h1,

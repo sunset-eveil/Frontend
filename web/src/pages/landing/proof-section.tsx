@@ -5,9 +5,9 @@ import type { ReactNode } from 'react';
 import { CountUp } from '../../components/count-up';
 import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 type Stat = { value: number; decimals?: number; suffix: string; label: string };
 type Testimonial = { quote: string; name: string; role: string };
@@ -32,7 +32,7 @@ const PROMISES: readonly SafetyPromise[] = [
 ];
 
 const Section = styled.section`
-  background: ${colors.navy};
+  background: ${COLORS.navy};
 `;
 
 const Inner = styled.div`
@@ -43,7 +43,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 112px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     gap: 40px;
     padding: 80px 16px;
   }
@@ -53,10 +53,10 @@ const Stats = styled.dl`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
-  border-top: 1px solid ${colors.whiteAlpha14};
-  border-bottom: 1px solid ${colors.whiteAlpha14};
+  border-top: 1px solid ${COLORS.whiteAlpha14};
+  border-bottom: 1px solid ${COLORS.whiteAlpha14};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -70,14 +70,14 @@ const StatItem = styled.div`
   text-align: center;
 
   & + & {
-    border-left: 1px solid ${colors.whiteAlpha14};
+    border-left: 1px solid ${COLORS.whiteAlpha14};
   }
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 24px;
 
     & + & {
-      border-top: 1px solid ${colors.whiteAlpha14};
+      border-top: 1px solid ${COLORS.whiteAlpha14};
       border-left: none;
     }
   }
@@ -85,15 +85,15 @@ const StatItem = styled.div`
 
 const StatValue = styled.dd`
   margin: 0;
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 48px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: normal;
   letter-spacing: -1.44px;
 `;
 
 const StatLabel = styled.dt`
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
   font-size: 16px;
   line-height: normal;
 `;
@@ -103,7 +103,7 @@ const Grid = styled.div`
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -116,14 +116,14 @@ const Card = styled.figure`
   margin: 0;
   padding: 32px;
   border-radius: 16px;
-  background: ${colors.navyCard};
+  background: ${COLORS.navyCard};
   transition:
     transform 0.2s ease,
     background-color 0.2s ease;
 
   &:hover {
     transform: translateY(-4px);
-    background: ${colors.navyCardHover};
+    background: ${COLORS.navyCardHover};
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -137,7 +137,7 @@ const Card = styled.figure`
 
 const Quote = styled.blockquote`
   margin: 0;
-  color: ${colors.testimonial};
+  color: ${COLORS.testimonial};
   font-size: 18px;
   line-height: 31.5px;
 `;
@@ -155,10 +155,10 @@ const Avatar = styled.span`
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: ${colors.primary};
-  color: ${colors.white};
+  background: ${COLORS.primary};
+  color: ${COLORS.white};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
 `;
 
 const AuthorText = styled.span`
@@ -173,23 +173,23 @@ const PromiseItem = styled.div`
   flex-direction: column;
   gap: 10px;
   padding: 24px 0;
-  border-top: 1px solid ${colors.whiteAlpha14};
+  border-top: 1px solid ${COLORS.whiteAlpha14};
 `;
 
 const PromiseLabel = styled.span`
   display: flex;
   gap: 8px;
   align-items: center;
-  color: ${colors.mint};
+  color: ${COLORS.mint};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const PromiseText = styled.span`
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 18px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: 27.9px;
 `;
 
@@ -228,8 +228,8 @@ export function ProofSection(): ReactNode {
                 <Author>
                   <Avatar aria-hidden>{name.charAt(0)}</Avatar>
                   <AuthorText>
-                    <span css={{ color: colors.white, fontSize: 16, fontWeight: fonts.weight.bold }}>{name}</span>
-                    <span css={{ color: colors.subtle, fontSize: 14 }}>{role}</span>
+                    <span css={{ color: COLORS.white, fontSize: 16, fontWeight: FONTS.weight.bold }}>{name}</span>
+                    <span css={{ color: COLORS.subtle, fontSize: 14 }}>{role}</span>
                   </AuthorText>
                 </Author>
               </Card>
@@ -241,7 +241,7 @@ export function ProofSection(): ReactNode {
           {PROMISES.map(({ icon: PromiseIcon, label, text }) => (
             <PromiseItem key={label}>
               <PromiseLabel>
-                <PromiseIcon size={18} color={colors.mint} />
+                <PromiseIcon size={18} color={COLORS.mint} />
                 {label}
               </PromiseLabel>
               <PromiseText>{text}</PromiseText>

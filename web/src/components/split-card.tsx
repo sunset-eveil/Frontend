@@ -1,7 +1,7 @@
 import styled from '@emotion/styled';
 import type { ReactNode } from 'react';
-import { colors, shadows } from '../styles/colors';
-import { media } from '../styles/layout';
+import { COLORS, SHADOWS } from '../styles/colors';
+import { MEDIA } from '../styles/layout';
 
 type SplitCardProps = {
   copy: ReactNode;
@@ -13,15 +13,15 @@ type SplitCardProps = {
 const Card = styled.div`
   overflow: hidden;
   border-radius: 20px;
-  background: ${colors.white};
-  box-shadow: ${shadows.panel};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.panel};
 `;
 
 const Body = styled.div<{ bodyHeight: number }>`
   display: flex;
   min-height: ${({ bodyHeight }) => bodyHeight}px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     flex-direction: column;
     min-height: 0;
   }
@@ -35,7 +35,7 @@ const Copy = styled.div`
   min-width: 0;
   padding: 40px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 32px 24px;
   }
 `;
@@ -49,7 +49,7 @@ const Visual = styled.div`
   min-width: 0;
   padding: 40px;
   overflow: hidden;
-  background: ${colors.primaryDeep};
+  background: ${COLORS.primaryDeep};
 
   &::before {
     content: '';
@@ -58,11 +58,11 @@ const Visual = styled.div`
     right: -120px;
     width: 320px;
     height: 320px;
-    border: 1px solid ${colors.whiteAlpha14};
+    border: 1px solid ${COLORS.whiteAlpha14};
     border-radius: 50%;
   }
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 48px 24px;
   }
 `;
@@ -86,6 +86,6 @@ export const FloatingPanel = styled.div`
   width: 100%;
   max-width: 300px;
   overflow: hidden;
-  background: ${colors.white};
-  box-shadow: ${shadows.floating};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.floating};
 `;

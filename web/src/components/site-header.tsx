@@ -1,11 +1,11 @@
 import styled from '@emotion/styled';
 import { ArrowLeft, Question } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { colors } from '../styles/colors';
-import { fonts } from '../styles/fonts';
-import { media } from '../styles/layout';
+import { COLORS } from '../styles/colors';
+import { FONTS } from '../styles/fonts';
+import { MEDIA } from '../styles/layout';
 import { AppLink } from './app-link';
-import { navButton } from './button';
+import { NAV_BUTTON } from './button';
 import { Logo } from './logo';
 
 type SiteHeaderProps =
@@ -18,22 +18,22 @@ const Bar = styled.header`
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid ${colors.divider};
-  background: ${colors.headerBackground};
+  border-bottom: 1px solid ${COLORS.divider};
+  background: ${COLORS.headerBackground};
   backdrop-filter: blur(4px);
 `;
 
-const Inner = styled.div<{ narrow: boolean }>`
+const Inner = styled.div<{ isNarrow: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: ${({ narrow }) => (narrow ? 1080 : 1180)}px;
+  max-width: ${({ isNarrow }) => (isNarrow ? 1080 : 1180)}px;
   height: 64px;
   margin: 0 auto;
   padding: 0 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 0 16px;
   }
 `;
@@ -52,10 +52,10 @@ const HomeLink = styled(AppLink)`
 
 const PageLabel = styled.span`
   padding-left: 10px;
-  border-left: 1px solid ${colors.border};
-  color: ${colors.muted};
+  border-left: 1px solid ${COLORS.border};
+  color: ${COLORS.muted};
   font-size: 16px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
@@ -63,18 +63,18 @@ const HelpNav = styled.nav`
   display: flex;
   gap: 28px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     display: none;
   }
 `;
 
 const HelpNavLink = styled(AppLink)`
-  color: ${colors.label};
+  color: ${COLORS.label};
   font-size: 16px;
-  font-weight: ${fonts.weight.medium};
+  font-weight: ${FONTS.weight.medium};
 
   &:hover {
-    color: ${colors.primary};
+    color: ${COLORS.primary};
   }
 `;
 
@@ -82,19 +82,19 @@ const TextLink = styled(AppLink)`
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  color: ${colors.label};
+  color: ${COLORS.label};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
 
   &:hover {
-    color: ${colors.primary};
+    color: ${COLORS.primary};
   }
 `;
 
 function HelpButton(): ReactNode {
   return (
-    <AppLink href="/help" css={navButton.outline}>
-      <Question size={16} color={colors.label} />
+    <AppLink href="/help" css={NAV_BUTTON.outline}>
+      <Question size={16} color={COLORS.label} />
       도움말
     </AppLink>
   );
@@ -106,22 +106,22 @@ function HeaderActions(props: SiteHeaderProps): ReactNode {
       return (
         <Actions>
           <HelpButton />
-          <AppLink href="/install" css={navButton.primary}>
+          <AppLink href="/install" css={NAV_BUTTON.primary}>
             무료로 시작
           </AppLink>
         </Actions>
       );
     case 'help':
       return (
-        <AppLink href="/" css={navButton.outline}>
-          <ArrowLeft size={14} color={colors.label} />
+        <AppLink href="/" css={NAV_BUTTON.outline}>
+          <ArrowLeft size={14} color={COLORS.label} />
           홈으로
         </AppLink>
       );
     case 'install':
       return (
         <TextLink href="/help">
-          <Question size={16} color={colors.label} />
+          <Question size={16} color={COLORS.label} />
           도움말
         </TextLink>
       );
@@ -129,7 +129,7 @@ function HeaderActions(props: SiteHeaderProps): ReactNode {
       return (
         <Actions>
           <HelpButton />
-          <button type="button" css={navButton.primary} onClick={props.onSkip}>
+          <button type="button" css={NAV_BUTTON.primary} onClick={props.onSkip}>
             건너뛰기
           </button>
         </Actions>
@@ -142,7 +142,7 @@ export function SiteHeader(props: SiteHeaderProps): ReactNode {
 
   return (
     <Bar>
-      <Inner narrow={props.variant === 'install'}>
+      <Inner isNarrow={props.variant === 'install'}>
         <HomeLink href="/" aria-label="Eveil 홈">
           <Logo />
           {isHelp && <PageLabel>도움말</PageLabel>}

@@ -1,16 +1,17 @@
+import type { ReactNode } from "react";
 import type { ButtonHTMLAttributes } from 'react';
 import styled from '@emotion/styled';
-import { colors } from '../styles/colors';
-import { Icon, type IconName } from './Icon';
+import { COLORS } from '../styles/colors';
+import { Icon, type IconName } from './icon';
 
 type ButtonVariant = 'outline' | 'filled' | 'ghost';
-type ButtonStyleProps = { variant?: ButtonVariant; compact?: boolean };
-type ControlProps = { size: number; bordered: boolean };
+type ButtonStyleProps = { variant?: ButtonVariant; isCompact?: boolean };
+type ControlProps = { size: number; hasBorder: boolean };
 type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon: IconName;
   label: string;
   size?: 32 | 36 | 40;
-  bordered?: boolean;
+  hasBorder?: boolean;
 };
 
 export const Button = styled.button<ButtonStyleProps>`
@@ -18,22 +19,22 @@ export const Button = styled.button<ButtonStyleProps>`
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: ${({ compact }) => compact ? '6px 12px' : '10px 18px'};
+  padding: ${({ isCompact }) => isCompact ? '6px 12px' : '10px 18px'};
   border: 1px solid ${({ variant }) => (
-    variant === 'ghost' ? 'transparent' : colors.accent
+    variant === 'ghost' ? 'transparent' : COLORS.accent
   )};
   border-radius: 8px;
-  color: ${colors.accentText};
+  color: ${COLORS.accentText};
   background: ${({ variant }) => (
-    variant === 'filled' ? colors.accentFill : 'transparent'
+    variant === 'filled' ? COLORS.accentFill : 'transparent'
   )};
-  font-size: ${({ compact }) => compact ? 12 : 14}px;
+  font-size: ${({ isCompact }) => isCompact ? 12 : 14}px;
   font-weight: 600;
   line-height: normal;
   white-space: nowrap;
 
   &:hover:not(:disabled) {
-    background: ${colors.selected};
+    background: ${COLORS.selected};
   }
 
   &:disabled {
@@ -49,15 +50,15 @@ const Control = styled.button<ControlProps>`
   width: ${({ size }) => size}px;
   height: ${({ size }) => size}px;
   padding: 0;
-  border: 1px solid ${({ bordered }) => (
-    bordered ? colors.border : 'transparent'
+  border: 1px solid ${({ hasBorder }) => (
+    hasBorder ? COLORS.border : 'transparent'
   )};
   border-radius: 8px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   background: transparent;
 
   &:hover:not(:disabled) {
-    background: ${colors.selected};
+    background: ${COLORS.selected};
   }
 
   &:disabled {
@@ -65,14 +66,14 @@ const Control = styled.button<ControlProps>`
   }
 `;
 
-export function IconButton({ icon, label, size = 32, bordered = false, ...props }: IconButtonProps) {
+export function IconButton({ icon, label, size = 32, hasBorder = false, ...props }: IconButtonProps): ReactNode {
   return (
     <Control
       type="button"
       aria-label={label}
       title={label}
       size={size}
-      bordered={bordered}
+      hasBorder={hasBorder}
       {...props}
     >
       <Icon name={icon} />

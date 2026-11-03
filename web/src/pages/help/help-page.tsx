@@ -3,9 +3,9 @@ import { MagnifyingGlass } from '@phosphor-icons/react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { SiteFooter } from '../../components/site-footer';
 import { SiteHeader } from '../../components/site-header';
-import { colors, shadows } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS, SHADOWS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { ContactSection } from './contact-section';
 import { FAQ_ITEMS, type FaqCategory, type FaqItem } from './faq-data';
 import { FaqSection } from './faq-section';
@@ -23,7 +23,7 @@ function filterFaq(items: readonly FaqItem[], category: FaqCategory | null, quer
 const Hero = styled.section`
   position: relative;
   overflow: hidden;
-  background: ${colors.primaryDeep};
+  background: ${COLORS.primaryDeep};
 
   &::before {
     content: '';
@@ -32,7 +32,7 @@ const Hero = styled.section`
     right: -160px;
     width: 520px;
     height: 520px;
-    border: 1px solid ${colors.whiteAlpha12};
+    border: 1px solid ${COLORS.whiteAlpha12};
     border-radius: 50%;
   }
 `;
@@ -47,20 +47,20 @@ const HeroInner = styled.div`
   margin: 0 auto;
   padding: 80px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 56px 16px;
   }
 `;
 
 const HeroTitle = styled.h1`
-  color: ${colors.white};
+  color: ${COLORS.white};
   font-size: 46px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 57.5px;
   letter-spacing: -1.61px;
   text-align: center;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 32px;
     line-height: 42px;
   }
@@ -74,8 +74,8 @@ const SearchBox = styled.label`
   max-width: 560px;
   padding: 0 18px;
   border-radius: 12px;
-  background: ${colors.white};
-  box-shadow: ${shadows.search};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.search};
 `;
 
 const SearchInput = styled.input`
@@ -85,12 +85,12 @@ const SearchInput = styled.input`
   padding: 0 2px;
   border: none;
   background: none;
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 16px;
   outline: none;
 
   &::placeholder {
-    color: ${colors.placeholder};
+    color: ${COLORS.placeholder};
   }
 `;
 
@@ -107,7 +107,7 @@ export function HelpPage(): ReactNode {
           <HeroInner>
             <HeroTitle>무엇을 도와드릴까요?</HeroTitle>
             <SearchBox>
-              <MagnifyingGlass size={20} color={colors.muted} aria-hidden />
+              <MagnifyingGlass size={20} color={COLORS.muted} aria-hidden />
               <SearchInput
                 type="search"
                 aria-label="자주 묻는 질문 검색"

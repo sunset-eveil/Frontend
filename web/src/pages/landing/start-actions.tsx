@@ -3,8 +3,8 @@ import styled from '@emotion/styled';
 import { DownloadSimple, Question } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { AppLink } from '../../components/app-link';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
 
 type StartActionsProps = {
   justify?: 'flex-start' | 'center';
@@ -17,7 +17,7 @@ const Row = styled.div<{ justify: StartActionsProps['justify'] }>`
   justify-content: ${({ justify }) => justify};
 `;
 
-const actionBase = css`
+const ACTION_BASE = css`
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -32,30 +32,30 @@ const actionBase = css`
     border-color 0.15s ease;
 
   &:focus-visible {
-    outline: 2px solid ${colors.white};
+    outline: 2px solid ${COLORS.white};
     outline-offset: 2px;
   }
 `;
 
-const installStyle = css`
-  ${actionBase};
-  background: ${colors.white};
-  color: ${colors.primaryDeep};
-  font-weight: ${fonts.weight.bold};
+const INSTALL_STYLE = css`
+  ${ACTION_BASE};
+  background: ${COLORS.white};
+  color: ${COLORS.primaryDeep};
+  font-weight: ${FONTS.weight.bold};
 
   &:hover {
-    background: ${colors.tile};
+    background: ${COLORS.tile};
   }
 `;
 
-const helpStyle = css`
-  ${actionBase};
-  border-color: ${colors.whiteAlpha40};
-  color: ${colors.white};
-  font-weight: ${fonts.weight.semibold};
+const HELP_STYLE = css`
+  ${ACTION_BASE};
+  border-color: ${COLORS.whiteAlpha40};
+  color: ${COLORS.white};
+  font-weight: ${FONTS.weight.semibold};
 
   &:hover {
-    border-color: ${colors.white};
+    border-color: ${COLORS.white};
   }
 `;
 
@@ -63,12 +63,12 @@ const helpStyle = css`
 export function StartActions({ justify = 'flex-start' }: StartActionsProps): ReactNode {
   return (
     <Row justify={justify}>
-      <AppLink href="/install" css={installStyle}>
-        <DownloadSimple size={18} color={colors.primaryDeep} />
+      <AppLink href="/install" css={INSTALL_STYLE}>
+        <DownloadSimple size={18} color={COLORS.primaryDeep} />
         크롬에 무료로 추가
       </AppLink>
-      <AppLink href="/help" css={helpStyle}>
-        <Question size={18} color={colors.white} />
+      <AppLink href="/help" css={HELP_STYLE}>
+        <Question size={18} color={COLORS.white} />
         도움말
       </AppLink>
     </Row>

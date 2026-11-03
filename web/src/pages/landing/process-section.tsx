@@ -3,9 +3,9 @@ import type { Icon } from '@phosphor-icons/react';
 import { Keyboard, PuzzlePiece, ShieldCheck } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Reveal } from '../../components/reveal';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 type Step = { icon: Icon; title: string; text: ReactNode };
 
@@ -36,7 +36,7 @@ const STEPS: readonly Step[] = [
 ];
 
 const Section = styled.section`
-  background: ${colors.white};
+  background: ${COLORS.white};
 `;
 
 const Inner = styled.div`
@@ -47,7 +47,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 112px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     gap: 40px;
     padding: 80px 16px;
   }
@@ -61,20 +61,20 @@ const Heading = styled.div`
 `;
 
 const Eyebrow = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const Title = styled.h2`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 40px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 54px;
   letter-spacing: -1.2px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 28px;
     line-height: 38px;
   }
@@ -88,7 +88,7 @@ const Steps = styled.ol`
   padding: 0;
   list-style: none;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -109,15 +109,15 @@ const IconTile = styled.span`
   width: 96px;
   height: 96px;
   border-radius: 48px;
-  background: ${colors.tile};
-  box-shadow: 0 0 0 10px ${colors.tileRing};
+  background: ${COLORS.tile};
+  box-shadow: 0 0 0 10px ${COLORS.tileRing};
   transition:
     transform 0.25s ease,
     box-shadow 0.25s ease;
 
   li:hover & {
     transform: translateY(-4px) rotate(-6deg);
-    box-shadow: 0 0 0 14px ${colors.tileRing};
+    box-shadow: 0 0 0 14px ${COLORS.tileRing};
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -130,22 +130,22 @@ const IconTile = styled.span`
 `;
 
 const StepNumber = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const StepTitle = styled.h3`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 22px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: normal;
   letter-spacing: -0.44px;
 `;
 
 const StepText = styled.p`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 27.2px;
 `;
@@ -166,7 +166,7 @@ export function ProcessSection(): ReactNode {
                 css={{ display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'center' }}
               >
                 <IconTile>
-                  <StepIcon size={40} color={colors.primary} />
+                  <StepIcon size={40} color={COLORS.primary} />
                 </IconTile>
                 <StepNumber>STEP {index + 1}</StepNumber>
                 <StepTitle>{title}</StepTitle>

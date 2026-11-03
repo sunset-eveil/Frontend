@@ -1,8 +1,8 @@
 import { css } from '@emotion/react';
-import { colors } from '../styles/colors';
-import { fonts } from '../styles/fonts';
+import { COLORS } from '../styles/colors';
+import { FONTS } from '../styles/fonts';
 
-const base = css`
+const BASE = css`
   display: inline-flex;
   flex-shrink: 0;
   gap: 6px;
@@ -10,7 +10,7 @@ const base = css`
   justify-content: center;
   border: 1px solid transparent;
   border-radius: 10px;
-  font-family: ${fonts.family};
+  font-family: ${FONTS.family};
   line-height: normal;
   white-space: nowrap;
   cursor: pointer;
@@ -20,81 +20,81 @@ const base = css`
     opacity 0.15s ease;
 
   &:focus-visible {
-    outline: 2px solid ${colors.primary};
+    outline: 2px solid ${COLORS.primary};
     outline-offset: 2px;
   }
 `;
 
 /** 헤더의 작은 버튼 (도움말, 무료로 시작, 건너뛰기, 홈으로) */
-export const navButton = {
+export const NAV_BUTTON = {
   outline: css`
-    ${base};
+    ${BASE};
     padding: 10px 14px;
-    border-color: ${colors.border};
+    border-color: ${COLORS.border};
     border-radius: 8px;
-    background: ${colors.white};
-    color: ${colors.label};
+    background: ${COLORS.white};
+    color: ${COLORS.label};
     font-size: 14px;
-    font-weight: ${fonts.weight.semibold};
+    font-weight: ${FONTS.weight.semibold};
 
     &:hover {
-      background: ${colors.surface};
+      background: ${COLORS.surface};
     }
   `,
   primary: css`
-    ${base};
+    ${BASE};
     padding: 10px 14px;
-    border-color: ${colors.primary};
+    border-color: ${COLORS.primary};
     border-radius: 8px;
-    background: ${colors.primary};
-    color: ${colors.white};
+    background: ${COLORS.primary};
+    color: ${COLORS.white};
     font-size: 14px;
-    font-weight: ${fonts.weight.semibold};
+    font-weight: ${FONTS.weight.semibold};
 
     &:hover {
-      background: ${colors.primaryDeep};
+      background: ${COLORS.primaryDeep};
     }
   `,
 };
 
 /** 본문 영역의 큰 버튼 */
-export const button = {
+export const BUTTON = {
   primaryLarge: css`
-    ${base};
+    ${BASE};
     gap: 10px;
     padding: 16px 24px;
-    background: ${colors.primary};
-    color: ${colors.white};
+    background: ${COLORS.primary};
+    color: ${COLORS.white};
     font-size: 16px;
-    font-weight: ${fonts.weight.bold};
+    font-weight: ${FONTS.weight.bold};
 
     &:hover {
-      background: ${colors.primaryDeep};
+      background: ${COLORS.primaryDeep};
     }
   `,
   next: css`
-    ${base};
+    ${BASE};
     padding: 12px 20px;
-    background: ${colors.primary};
-    color: ${colors.white};
+    background: ${COLORS.primary};
+    color: ${COLORS.white};
     font-size: 16px;
-    font-weight: ${fonts.weight.bold};
+    font-weight: ${FONTS.weight.bold};
 
     &:hover {
-      background: ${colors.primaryDeep};
+      background: ${COLORS.primaryDeep};
     }
   `,
   secondary: css`
-    ${base};
+    ${BASE};
     padding: 12px 18px;
-    border-color: ${colors.border};
-    background: ${colors.white};
-    color: ${colors.label};
+    border-color: ${COLORS.border};
+    background: ${COLORS.white};
+    color: ${COLORS.label};
     font-size: 16px;
-    font-weight: ${fonts.weight.semibold};
+    font-weight: ${FONTS.weight.semibold};
 
     &:hover {
-      background: ${colors.surface};
+      background: ${COLORS.surface};
     }
   `,
 };

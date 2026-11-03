@@ -2,14 +2,14 @@ import styled from '@emotion/styled';
 import { Check, GoogleChromeLogo } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { AppLink } from '../../components/app-link';
-import { button } from '../../components/button';
+import { BUTTON } from '../../components/button';
 import { Logo } from '../../components/logo';
 import { SiteHeader } from '../../components/site-header';
 import { FloatingPanel, SplitCard } from '../../components/split-card';
 import { CHROME_WEB_STORE_URL } from '../../constants/links';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 type InstallStep = { title: string; text: string };
 
@@ -23,7 +23,7 @@ const PROMISES: readonly string[] = ['chatgpt.com에서만 작동', '원본은 �
 
 const Page = styled.div`
   min-height: 100dvh;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const Main = styled.main`
@@ -34,27 +34,27 @@ const Main = styled.main`
   margin: 0 auto;
   padding: 56px 24px 120px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 32px 16px 80px;
   }
 `;
 
 const Eyebrow = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 14px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const Title = styled.h1`
   margin-top: 20px;
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 36px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 46.8px;
   letter-spacing: -1.08px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 30px;
     line-height: 40px;
   }
@@ -62,14 +62,14 @@ const Title = styled.h1`
 
 const Lead = styled.p`
   margin: 20px 0 22px;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 28px;
 `;
 
 const Note = styled.p`
   margin-top: 22px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
   line-height: normal;
 `;
@@ -84,7 +84,7 @@ const PanelBody = styled(FloatingPanel)`
 
 const PanelCaption = styled.span`
   margin-top: 6px;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 12px;
   line-height: normal;
 `;
@@ -102,7 +102,7 @@ const PromiseItem = styled.li`
   display: flex;
   gap: 8px;
   align-items: center;
-  color: ${colors.label};
+  color: ${COLORS.label};
   font-size: 14px;
   line-height: normal;
 `;
@@ -115,7 +115,7 @@ const Steps = styled.ol`
   padding: 0;
   list-style: none;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -126,7 +126,7 @@ const StepCard = styled.li`
   align-items: flex-start;
   padding: 20px;
   border-radius: 14px;
-  background: ${colors.white};
+  background: ${COLORS.white};
 `;
 
 const StepNumber = styled.span`
@@ -137,10 +137,10 @@ const StepNumber = styled.span`
   width: 32px;
   height: 32px;
   border-radius: 16px;
-  background: ${colors.tile};
-  color: ${colors.primary};
+  background: ${COLORS.tile};
+  color: ${COLORS.primary};
   font-size: 14px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
 `;
 
 const StepText = styled.div`
@@ -150,14 +150,14 @@ const StepText = styled.div`
 `;
 
 const StepTitle = styled.span`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const StepCaption = styled.span`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 14px;
   line-height: 21px;
 `;
@@ -165,21 +165,21 @@ const StepCaption = styled.span`
 function InstallButton(): ReactNode {
   const content = (
     <>
-      <GoogleChromeLogo size={20} color={colors.white} />
+      <GoogleChromeLogo size={20} color={COLORS.white} />
       Chrome에 추가
     </>
   );
 
   if (CHROME_WEB_STORE_URL) {
     return (
-      <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer" css={button.primaryLarge}>
+      <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer" css={BUTTON.primaryLarge}>
         {content}
       </a>
     );
   }
 
   return (
-    <AppLink href="/onboarding" css={button.primaryLarge}>
+    <AppLink href="/onboarding" css={BUTTON.primaryLarge}>
       {content}
     </AppLink>
   );
@@ -214,7 +214,7 @@ export function InstallPage(): ReactNode {
               <PromiseList>
                 {PROMISES.map((text) => (
                   <PromiseItem key={text}>
-                    <Check size={14} color={colors.primary} />
+                    <Check size={14} color={COLORS.primary} />
                     {text}
                   </PromiseItem>
                 ))}

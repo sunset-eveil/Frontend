@@ -1,11 +1,12 @@
+import type { ReactNode } from "react";
 import styled from '@emotion/styled';
-import { colors } from '../styles/colors';
-import { Button } from './Button';
-import { Logo } from './Icon';
+import { COLORS } from '../styles/colors';
+import { Button } from './button';
+import { Logo } from './icon';
 
 type EveilButtonProps = {
   onClick: () => void;
-  showHint?: boolean;
+  isHintVisible?: boolean;
   onDismissHint?: () => void;
 };
 
@@ -15,12 +16,12 @@ const Trigger = styled.button`
   justify-content: center;
   width: 74px;
   height: 36px;
-  border: 1px solid ${colors.accentBorder};
+  border: 1px solid ${COLORS.accentBorder};
   border-radius: 999px;
-  background: ${colors.surface};
+  background: ${COLORS.surface};
 
   &:hover {
-    background: ${colors.selected};
+    background: ${COLORS.selected};
   }
 `;
 
@@ -33,16 +34,16 @@ const Tooltip = styled.div`
   gap: 7px;
   width: 262px;
   padding: 13px 14px 14px;
-  border: 1px solid ${colors.accentBorder};
+  border: 1px solid ${COLORS.accentBorder};
   border-radius: 12px;
-  background: ${colors.surfaceRaised};
+  background: ${COLORS.surfaceRaised};
   box-shadow: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
   font-size: 14px;
   line-height: 21.7px;
 
   p {
     margin: 0;
-    color: ${colors.secondary};
+    color: ${COLORS.secondary};
   }
 
   strong {
@@ -55,9 +56,9 @@ const Tooltip = styled.div`
     bottom: -7px;
     width: 12px;
     height: 12px;
-    border-right: 1px solid ${colors.accentBorder};
-    border-bottom: 1px solid ${colors.accentBorder};
-    background: ${colors.surfaceRaised};
+    border-right: 1px solid ${COLORS.accentBorder};
+    border-bottom: 1px solid ${COLORS.accentBorder};
+    background: ${COLORS.surfaceRaised};
     content: '';
     transform: rotate(45deg);
   }
@@ -74,18 +75,18 @@ const TooltipAction = styled.div`
   padding-top: 1px;
 `;
 
-export function EveilButton({ onClick, showHint = false, onDismissHint }: EveilButtonProps) {
+export function EveilButton({ onClick, isHintVisible = false, onDismissHint }: EveilButtonProps): ReactNode {
   return <TriggerArea>
     <Trigger type="button" onClick={onClick} aria-label="Eveil 입력창 열기">
       <Logo />
     </Trigger>
-    {showHint && <Tooltip role="region" aria-label="Eveil 사용 안내">
+    {isHintVisible && <Tooltip role="region" aria-label="Eveil 사용 안내">
       <strong>Eveil이 여기 있어요</strong>
       <p>
         눌러서 보낼 내용을 입력하면 개인정보를<br />가려서 보내 드려요.
       </p>
       <TooltipAction>
-        <Button type="button" compact onClick={onDismissHint}>
+        <Button type="button" isCompact onClick={onDismissHint}>
           알겠어요
         </Button>
       </TooltipAction>

@@ -9,13 +9,13 @@ import styled from "@emotion/styled";
 import eyeOffIcon from "../assets/mask-eye-off.svg";
 import pointerIcon from "../assets/mask-pointer.svg";
 import type { ManualMask, MaskDefinition, MaskTypeId } from "../masking";
-import { colors } from "../styles/colors";
-import { Panel } from "./InputPanel";
-import { Icon, Logo } from "./Icon";
-import { IconButton, Button } from "./Button";
-import { MaskSelectionPopover } from "./MaskSelectionPopover";
-import { ManualMaskList } from "./ManualMaskList";
-import { MaskStatus } from "./PrivacyText";
+import { COLORS } from "../styles/colors";
+import { Panel } from "./input-panel";
+import { Icon, Logo } from "./icon";
+import { IconButton, Button } from "./button";
+import { MaskSelectionPopover } from "./mask-selection-popover";
+import { ManualMaskList } from "./manual-mask-list";
+import { MaskStatus } from "./privacy-text";
 
 type ComparisonPanelProps = {
   original: ReactNode;
@@ -24,7 +24,7 @@ type ComparisonPanelProps = {
   count: number;
   maskOptions: MaskDefinition[];
   manualMasks: ManualMask[];
-  requestStatus?: { message: string; error: boolean } | null;
+  requestStatus?: { message: string; isError: boolean } | null;
   onClose: () => void;
   onCollapse: () => void;
   onAddManualMask: (
@@ -34,7 +34,7 @@ type ComparisonPanelProps = {
   onSend?: () => void;
 };
 type ContentColumnProps = {
-  masked: boolean;
+  isMasked: boolean;
 };
 type SelectionDraft = {
   text: string;
@@ -56,7 +56,7 @@ const Dialog = styled.dialog`
   margin: 0;
   padding: 24px;
   border: 0;
-  color: ${colors.text};
+  color: ${COLORS.text};
   background: transparent;
 
   &[open] {
@@ -66,7 +66,7 @@ const Dialog = styled.dialog`
   }
 
   &::backdrop {
-    background: ${colors.overlay};
+    background: ${COLORS.overlay};
     backdrop-filter: blur(1.5px);
   }
 
@@ -91,8 +91,8 @@ const Header = styled.header`
   align-items: center;
   gap: 12px;
   padding: 12px 14px 12px 20px;
-  border-bottom: 1px solid ${colors.divider};
-  background: ${colors.surfaceRaised};
+  border-bottom: 1px solid ${COLORS.divider};
+  background: ${COLORS.surfaceRaised};
 
   @media (max-width: 560px) {
     gap: 6px;
@@ -103,12 +103,12 @@ const Header = styled.header`
 const Divider = styled.span`
   width: 1px;
   height: 18px;
-  background: ${colors.divider};
+  background: ${COLORS.divider};
 `;
 
 const Description = styled.span`
   flex: 1;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
 
   @media (max-width: 560px) {
@@ -132,19 +132,19 @@ const Sidebar = styled.aside`
   width: 210px;
   overflow: auto;
   padding: 18px 12px;
-  border-right: 1px solid ${colors.divider};
+  border-right: 1px solid ${COLORS.divider};
 
   @media (max-width: 760px) {
     width: 100%;
     max-height: 190px;
     border-right: 0;
-    border-bottom: 1px solid ${colors.divider};
+    border-bottom: 1px solid ${COLORS.divider};
   }
 `;
 
 const SidebarTitle = styled.h2`
   margin: 0 6px 12px;
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
   font-size: 12px;
   font-weight: 600;
   line-height: 18.6px;
@@ -180,7 +180,7 @@ const ColumnTitle = styled.h2<ContentColumnProps>`
   gap: 8px;
   height: 32px;
   margin: 0 0 10px;
-  color: ${({ masked }) => (masked ? colors.status : colors.muted)};
+  color: ${({ isMasked }) => (isMasked ? COLORS.status : COLORS.muted)};
   font-size: 12px;
   font-weight: 600;
 `;
@@ -198,8 +198,8 @@ const DragHint = styled.span`
   margin-left: auto;
   padding: 3px 8px;
   border-radius: 6px;
-  color: ${colors.accentText};
-  background: ${colors.selected};
+  color: ${COLORS.accentText};
+  background: ${COLORS.selected};
   font-size: 11px;
   font-weight: 500;
 `;
@@ -215,12 +215,12 @@ const ColumnContent = styled.div<ContentColumnProps>`
   overflow: auto;
   padding: 16px 18px;
   border: 1px solid
-    ${({ masked }) => (masked ? colors.accentBorder : colors.border)};
+    ${({ isMasked }) => (isMasked ? COLORS.accentBorder : COLORS.border)};
   border-radius: 16px;
-  background: ${({ masked }) =>
-    masked ? colors.surface : colors.surfaceRaised};
+  background: ${({ isMasked }) =>
+    isMasked ? COLORS.surface : COLORS.surfaceRaised};
   font-size: 16px;
-  line-height: ${({ masked }) => (masked ? "32px" : "29.6px")};
+  line-height: ${({ isMasked }) => (isMasked ? "32px" : "29.6px")};
   white-space: pre-wrap;
 `;
 
@@ -231,8 +231,8 @@ const Footer = styled.footer`
   justify-content: space-between;
   gap: 12px;
   padding: 12px 20px;
-  border-top: 1px solid ${colors.divider};
-  background: ${colors.surfaceRaised};
+  border-top: 1px solid ${COLORS.divider};
+  background: ${COLORS.surfaceRaised};
 
   @media (max-width: 560px) {
     align-items: stretch;
@@ -252,18 +252,18 @@ const ManualCount = styled.span`
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
-  border: 1px dashed ${colors.accent};
+  border: 1px dashed ${COLORS.accent};
   border-radius: 999px;
-  color: ${colors.accentText};
+  color: ${COLORS.accentText};
   font-size: 12px;
 `;
 
-const RequestMessage = styled.span<{ error: boolean }>`
-  color: ${({ error }) => (error ? "#EF625D" : colors.muted)};
+const RequestMessage = styled.span<{ isError: boolean }>`
+  color: ${({ isError }) => (isError ? "#EF625D" : COLORS.muted)};
   font-size: 12px;
 `;
 
-function getTextOffset(container: HTMLElement, node: Node, offset: number) {
+function getTextOffset(container: HTMLElement, node: Node, offset: number): number {
   const range = document.createRange();
 
   range.selectNodeContents(container);
@@ -285,12 +285,12 @@ export function ComparisonPanel({
   onAddManualMask,
   onRemoveManualMask,
   onSend,
-}: ComparisonPanelProps) {
+}: ComparisonPanelProps): ReactNode {
   const dialog = useRef<HTMLDialogElement>(null);
   const originalContent = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<SelectionDraft>();
   const [selectedType, setSelectedType] = useState<MaskTypeId>("custom");
-  const [remember, setRemember] = useState(true);
+  const [shouldRemember, setRemember] = useState(true);
 
   useEffect(() => {
     const element = dialog.current;
@@ -304,17 +304,17 @@ export function ComparisonPanel({
       label: "원본",
       icon: "pencil" as const,
       content: original,
-      masked: false,
+      isMasked: false,
     },
     {
       label: "가려짐 (ChatGPT에 전송)",
       icon: "shieldCheck" as const,
       content: masked,
-      masked: true,
+      isMasked: true,
     },
   ];
 
-  const handleSelection = () => {
+  const handleSelection = (): void => {
     const container = originalContent.current;
     const selected = window.getSelection();
 
@@ -365,12 +365,12 @@ export function ComparisonPanel({
     setRemember(true);
   };
 
-  const closeSelection = () => {
+  const closeSelection = (): void => {
     setSelection(undefined);
     window.getSelection()?.removeAllRanges();
   };
 
-  const handlePointerDown = (event: PointerEvent) => {
+  const handlePointerDown = (event: PointerEvent): void => {
     const target = event.target as Element;
 
     if (selection && !target.closest('[aria-label="선택한 부분 가리기"]')) {
@@ -378,7 +378,7 @@ export function ComparisonPanel({
     }
   };
 
-  const addManualMask = () => {
+  const addManualMask = (): void => {
     if (!selection) {
       return;
     }
@@ -388,7 +388,7 @@ export function ComparisonPanel({
       end: selection.end,
       text: selection.text,
       type: selectedType,
-      remember,
+      shouldRemember,
     });
     closeSelection();
   };
@@ -419,7 +419,7 @@ export function ComparisonPanel({
             icon="collapse"
             label="입력창으로 돌아가기"
             size={36}
-            bordered
+            hasBorder
             onClick={onCollapse}
           />
           <IconButton
@@ -438,12 +438,12 @@ export function ComparisonPanel({
           <Columns>
             {columns.map((column) => (
               <Column key={column.label}>
-                <ColumnTitle masked={column.masked}>
+                <ColumnTitle isMasked={column.isMasked}>
                   <ColumnTitleText>
                     <Icon name={column.icon} />
                     {column.label}
                   </ColumnTitleText>
-                  {!column.masked && (
+                  {!column.isMasked && (
                     <DragHint>
                       <SmallIcon src={pointerIcon} alt="" />
                       드래그해서 직접 가리기
@@ -451,16 +451,16 @@ export function ComparisonPanel({
                   )}
                 </ColumnTitle>
                 <ColumnContent
-                  ref={column.masked ? undefined : originalContent}
-                  masked={column.masked}
-                  onMouseUp={column.masked ? undefined : handleSelection}
+                  ref={column.isMasked ? undefined : originalContent}
+                  isMasked={column.isMasked}
+                  onMouseUp={column.isMasked ? undefined : handleSelection}
                 >
                   {column.content}
-                  {!column.masked && selection && (
+                  {!column.isMasked && selection && (
                     <MaskSelectionPopover
                       text={selection.text}
                       type={selectedType}
-                      remember={remember}
+                      shouldRemember={shouldRemember}
                       options={maskOptions}
                       position={selection.position}
                       onTypeChange={setSelectedType}
@@ -476,7 +476,7 @@ export function ComparisonPanel({
         </Body>
         <Footer>
           <FooterStatus>
-            <MaskStatus count={count} large />
+            <MaskStatus count={count} isLarge />
             {manualMasks.length > 0 && (
               <ManualCount>
                 <SmallIcon src={eyeOffIcon} alt="" />
@@ -485,8 +485,8 @@ export function ComparisonPanel({
             )}
             {requestStatus && (
               <RequestMessage
-                error={requestStatus.error}
-                role={requestStatus.error ? "alert" : "status"}
+                isError={requestStatus.isError}
+                role={requestStatus.isError ? "alert" : "status"}
               >
                 {requestStatus.message}
               </RequestMessage>

@@ -1,13 +1,14 @@
+import type { ReactNode } from "react";
 import styled from '@emotion/styled';
-import { colors } from '../styles/colors';
-import { Icon, type IconName } from './Icon';
+import { COLORS } from '../styles/colors';
+import { Icon, type IconName } from './icon';
 
 type MaskTypeItemProps = {
   label: string;
   icon: IconName;
   count: number;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  isChecked: boolean;
+  onChange: (isChecked: boolean) => void;
 };
 
 const Row = styled.button`
@@ -19,12 +20,12 @@ const Row = styled.button`
   padding: 10px 6px;
   border: 0;
   border-radius: 8px;
-  color: ${colors.text};
+  color: ${COLORS.text};
   background: transparent;
   font-size: 14px;
 
   &:hover {
-    background: ${colors.selected};
+    background: ${COLORS.selected};
   }
 `;
 
@@ -34,11 +35,11 @@ const Label = styled.span`
 `;
 
 const Count = styled.span`
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
   font-size: 12px;
 `;
 
-const Switch = styled.span<{ checked: boolean }>`
+const Switch = styled.span<{ isChecked: boolean }>`
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -46,28 +47,28 @@ const Switch = styled.span<{ checked: boolean }>`
   height: 18px;
   padding: 2px;
   border-radius: 999px;
-  background: ${({ checked }) => checked ? colors.active : colors.border};
+  background: ${({ isChecked }) => isChecked ? COLORS.active : COLORS.border};
 `;
 
-const Thumb = styled.span<{ checked: boolean }>`
+const Thumb = styled.span<{ isChecked: boolean }>`
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: ${colors.switchThumb};
-  transform: ${({ checked }) => checked ? 'translateX(12px)' : 'none'};
+  background: ${COLORS.switchThumb};
+  transform: ${({ isChecked }) => isChecked ? 'translateX(12px)' : 'none'};
 `;
 
-export function MaskTypeItem({ label, icon, count, checked, onChange }: MaskTypeItemProps) {
+export function MaskTypeItem({ label, icon, count, isChecked, onChange }: MaskTypeItemProps): ReactNode {
   return <Row
     type="button"
     role="switch"
-    aria-checked={checked}
+    aria-isChecked={isChecked}
     aria-label={`${label} 가리기`}
-    onClick={() => onChange(!checked)}
+    onClick={() => onChange(!isChecked)}
   >
     <Icon name={icon} />
     <Label>{label}</Label>
     <Count>{count}</Count>
-    <Switch checked={checked}><Thumb checked={checked} /></Switch>
+    <Switch isChecked={isChecked}><Thumb isChecked={isChecked} /></Switch>
   </Row>;
 }

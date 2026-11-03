@@ -1,12 +1,13 @@
+import type { ReactNode } from "react";
 import styled from "@emotion/styled";
 
-const assets = import.meta.glob<string>("../assets/*.svg", {
+const ASSETS = import.meta.glob<string>("../assets/*.svg", {
   eager: true,
   query: "?url",
   import: "default",
 });
 
-const variants = {
+const VARIANTS = {
   more: 109,
   plus: 112,
   inputCaret: 113,
@@ -37,28 +38,28 @@ const variants = {
   shieldCheckLarge: 138,
 } as const;
 
-export type IconName = keyof typeof variants;
+export type IconName = keyof typeof VARIANTS;
 type IconProps = { name: IconName };
 type LogoProps = { size?: "button" | "status" | "editor" | "comparison" };
 
-const Image = styled.img<{ flip?: boolean }>`
+const Image = styled.img<{ shouldFlip?: boolean }>`
   display: block;
   flex-shrink: 0;
-  transform: ${({ flip }) => flip ? 'rotate(180deg)' : 'none'};
+  transform: ${({ shouldFlip }) => shouldFlip ? 'rotate(180deg)' : 'none'};
 `;
 
-export function Icon({ name }: IconProps) {
+export function Icon({ name }: IconProps): ReactNode {
   return (
     <Image
-      src={assets[`../assets/icon-${variants[name]}.svg`]}
-      flip={name === 'inputCaret' || name === 'arrowUp' || name === 'microphone'}
+      src={ASSETS[`../ASSETS/icon-${VARIANTS[name]}.svg`]}
+      shouldFlip={name === 'inputCaret' || name === 'arrowUp' || name === 'microphone'}
       alt=""
       aria-hidden="true"
     />
   );
 }
 
-export function Logo({ size = "button" }: LogoProps) {
+export function Logo({ size = "button" }: LogoProps): ReactNode {
   const variant = { button: 11, status: 10, editor: 12, comparison: 13 }[size];
-  return <Image src={assets[`../assets/logo-${variant}.svg`]} alt="Eveil" />;
+  return <Image src={ASSETS[`../ASSETS/logo-${variant}.svg`]} alt="Eveil" />;
 }

@@ -2,11 +2,11 @@ import styled from '@emotion/styled';
 import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { AppLink } from '../../components/app-link';
-import { button } from '../../components/button';
+import { BUTTON } from '../../components/button';
 import { SiteHeader } from '../../components/site-header';
-import { colors, shadows } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS, SHADOWS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 import { StepInstalled, StepMaskTypes, StepReady, StepTry } from './onboarding-steps';
 
 type Step = 1 | 2 | 3 | 4;
@@ -22,7 +22,7 @@ const LAST_STEP: Step = 4;
 
 const Page = styled.div`
   min-height: 100dvh;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const Main = styled.main`
@@ -30,7 +30,7 @@ const Main = styled.main`
   margin: 0 auto;
   padding: 40px 24px 120px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 28px 16px 80px;
   }
 `;
@@ -45,9 +45,9 @@ const Progress = styled.div`
 const ProgressText = styled.div`
   display: flex;
   justify-content: space-between;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
@@ -55,22 +55,22 @@ const Track = styled.div`
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: ${colors.track};
+  background: ${COLORS.track};
 `;
 
 const Fill = styled.div<{ ratio: number }>`
   width: ${({ ratio }) => ratio * 100}%;
   height: 100%;
   border-radius: 999px;
-  background: ${colors.primary};
+  background: ${COLORS.primary};
   transition: width 0.3s ease;
 `;
 
 const Panel = styled.div`
   overflow: hidden;
   border-radius: 20px;
-  background: ${colors.white};
-  box-shadow: ${shadows.panel};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.panel};
 `;
 
 const Footer = styled.div<{ hasPrev: boolean }>`
@@ -78,10 +78,10 @@ const Footer = styled.div<{ hasPrev: boolean }>`
   align-items: center;
   justify-content: ${({ hasPrev }) => (hasPrev ? 'space-between' : 'flex-end')};
   padding: 20px 40px;
-  border-top: 1px solid ${colors.divider};
-  background: ${colors.footerBar};
+  border-top: 1px solid ${COLORS.divider};
+  background: ${COLORS.footerBar};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 16px 20px;
   }
 `;
@@ -109,18 +109,18 @@ export function OnboardingPage(): ReactNode {
   const footer = (
     <Footer hasPrev={step > 1}>
       {step > 1 && (
-        <button type="button" css={button.secondary} onClick={goPrev}>
-          <ArrowLeft size={16} color={colors.label} />
+        <button type="button" css={BUTTON.secondary} onClick={goPrev}>
+          <ArrowLeft size={16} color={COLORS.label} />
           이전
         </button>
       )}
       {step < LAST_STEP ? (
-        <button type="button" css={button.next} onClick={goNext}>
+        <button type="button" css={BUTTON.next} onClick={goNext}>
           {step === 3 ? '완료' : '다음'}
-          <ArrowRight size={16} color={colors.white} />
+          <ArrowRight size={16} color={COLORS.white} />
         </button>
       ) : (
-        <AppLink href="/" css={button.secondary}>
+        <AppLink href="/" css={BUTTON.secondary}>
           랜딩 페이지로 가기
         </AppLink>
       )}

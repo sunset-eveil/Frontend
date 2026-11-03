@@ -1,22 +1,23 @@
+import type { ReactNode } from "react";
 import styled from "@emotion/styled";
 import checkIcon from "../assets/mask-check.svg";
 import eyeOffIcon from "../assets/mask-eye-off.svg";
 import popoverArrow from "../assets/mask-popover-arrow.svg";
 import type { MaskDefinition, MaskTypeId } from "../masking";
-import { colors } from "../styles/colors";
-import { Icon } from "./Icon";
+import { COLORS } from "../styles/colors";
+import { Icon } from "./icon";
 
 type MaskSelectionPopoverProps = {
   text: string;
   type: MaskTypeId;
-  remember: boolean;
+  shouldRemember: boolean;
   options: MaskDefinition[];
   position: {
     left: number;
     top: number;
   };
   onTypeChange: (type: MaskTypeId) => void;
-  onRememberChange: (remember: boolean) => void;
+  onRememberChange: (shouldRemember: boolean) => void;
   onCancel: () => void;
   onMask: () => void;
 };
@@ -31,9 +32,9 @@ const Popover = styled.div<{ $left: number; $top: number }>`
   gap: 10px;
   width: 300px;
   padding: 14px;
-  border: 1px solid ${colors.accentBorder};
+  border: 1px solid ${COLORS.accentBorder};
   border-radius: 12px;
-  background: ${colors.surface};
+  background: ${COLORS.surface};
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 
   @media (max-width: 560px) {
@@ -45,7 +46,7 @@ const Title = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  color: ${colors.text};
+  color: ${COLORS.text};
   font-size: 14px;
   font-weight: 600;
 `;
@@ -63,14 +64,14 @@ const Selection = styled.div`
   padding: 0 10px;
   overflow: hidden;
   border-radius: 7px;
-  color: ${colors.secondary};
-  background: ${colors.surfaceRaised};
+  color: ${COLORS.secondary};
+  background: ${COLORS.surfaceRaised};
   font-size: 13px;
   white-space: nowrap;
 `;
 
 const Arrow = styled.span`
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
 `;
 
 const SelectedType = styled.span`
@@ -78,14 +79,14 @@ const SelectedType = styled.span`
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  border: 1px dashed ${colors.accent};
+  border: 1px dashed ${COLORS.accent};
   border-radius: 6px;
-  color: ${colors.accentText};
-  background: ${colors.selected};
+  color: ${COLORS.accentText};
+  background: ${COLORS.selected};
 `;
 
 const Label = styled.span`
-  color: ${colors.subtle};
+  color: ${COLORS.subtle};
   font-size: 12px;
 `;
 
@@ -95,18 +96,18 @@ const Options = styled.div`
   gap: 4px;
 `;
 
-const Option = styled.button<{ $selected: boolean }>`
+const Option = styled.button<{ $isSelected: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 26px;
   padding: 0 8px;
   border: 1px solid
-    ${({ $selected }) => ($selected ? colors.accent : colors.border)};
+    ${({ $isSelected }) => ($isSelected ? COLORS.accent : COLORS.border)};
   border-radius: 999px;
-  color: ${({ $selected }) => ($selected ? colors.accentText : colors.muted)};
-  background: ${({ $selected }) =>
-    $selected ? colors.selected : "transparent"};
+  color: ${({ $isSelected }) => ($isSelected ? COLORS.accentText : COLORS.muted)};
+  background: ${({ $isSelected }) =>
+    $isSelected ? COLORS.selected : "transparent"};
   font-size: 12px;
 `;
 
@@ -117,22 +118,22 @@ const Remember = styled.button`
   height: 18px;
   padding: 0;
   border: 0;
-  color: ${colors.muted};
+  color: ${COLORS.muted};
   background: transparent;
   font-size: 12px;
   text-align: left;
 `;
 
-const Checkbox = styled.span<{ $checked: boolean }>`
+const Checkbox = styled.span<{ $isChecked: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;
   border: 1px solid
-    ${({ $checked }) => ($checked ? colors.accent : colors.border)};
+    ${({ $isChecked }) => ($isChecked ? COLORS.accent : COLORS.border)};
   border-radius: 4px;
-  background: ${({ $checked }) => ($checked ? colors.accent : "transparent")};
+  background: ${({ $isChecked }) => ($isChecked ? COLORS.accent : "transparent")};
 `;
 
 const Actions = styled.div`
@@ -141,17 +142,17 @@ const Actions = styled.div`
   gap: 8px;
 `;
 
-const Action = styled.button<{ $primary?: boolean }>`
+const Action = styled.button<{ $isPrimary?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 32px;
   padding: 0 14px;
   border: 1px solid
-    ${({ $primary }) => ($primary ? colors.accent : colors.border)};
+    ${({ $isPrimary }) => ($isPrimary ? COLORS.accent : COLORS.border)};
   border-radius: 8px;
-  color: ${({ $primary }) => ($primary ? "#FFFFFF" : colors.muted)};
-  background: ${({ $primary }) => ($primary ? colors.accent : "transparent")};
+  color: ${({ $isPrimary }) => ($isPrimary ? "#FFFFFF" : COLORS.muted)};
+  background: ${({ $isPrimary }) => ($isPrimary ? COLORS.accent : "transparent")};
   font-size: 13px;
   font-weight: 500;
 `;
@@ -165,14 +166,14 @@ const PopoverArrow = styled.img`
 export function MaskSelectionPopover({
   text,
   type,
-  remember,
+  shouldRemember,
   options,
   position,
   onTypeChange,
   onRememberChange,
   onCancel,
   onMask,
-}: MaskSelectionPopoverProps) {
+}: MaskSelectionPopoverProps): ReactNode {
   const selected =
     options.find((option) => option.id === type) ?? options.at(-1);
 
@@ -202,7 +203,7 @@ export function MaskSelectionPopover({
           <Option
             key={option.id}
             type="button"
-            $selected={option.id === type}
+            $isSelected={option.id === type}
             aria-pressed={option.id === type}
             onClick={() => onTypeChange(option.id)}
           >
@@ -214,11 +215,11 @@ export function MaskSelectionPopover({
       <Remember
         type="button"
         role="checkbox"
-        aria-checked={remember}
-        onClick={() => onRememberChange(!remember)}
+        aria-checked={shouldRemember}
+        onClick={() => onRememberChange(!shouldRemember)}
       >
-        <Checkbox $checked={remember}>
-          {remember && <SmallIcon src={checkIcon} alt="" />}
+        <Checkbox $isChecked={shouldRemember}>
+          {shouldRemember && <SmallIcon src={checkIcon} alt="" />}
         </Checkbox>
         다음에도 이 단어는 자동으로 가리기
       </Remember>
@@ -226,7 +227,7 @@ export function MaskSelectionPopover({
         <Action type="button" onClick={onCancel}>
           취소
         </Action>
-        <Action type="button" $primary onClick={onMask}>
+        <Action type="button" $isPrimary onClick={onMask}>
           <SmallIcon src={eyeOffIcon} alt="" />
           가리기
         </Action>

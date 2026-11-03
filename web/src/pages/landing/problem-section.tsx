@@ -4,9 +4,9 @@ import { CreditCard, Database, LockKeyOpen } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Reveal } from '../../components/reveal';
 import { SectionTitle } from '../../components/section-title';
-import { colors } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 type Concern = {
   icon: Icon;
@@ -25,7 +25,7 @@ const CONCERNS: readonly Concern[] = [
 ];
 
 const Section = styled.section`
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const Inner = styled.div`
@@ -36,7 +36,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 112px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     gap: 40px;
     padding: 80px 16px;
   }
@@ -47,7 +47,7 @@ const Grid = styled.div`
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
   }
 `;
@@ -59,7 +59,7 @@ const Card = styled.article`
   padding: 32px;
   height: 100%;
   border-radius: 16px;
-  background: ${colors.white};
+  background: ${COLORS.white};
 
   transition:
     transform 0.2s ease,
@@ -86,19 +86,19 @@ const IconCircle = styled.span`
   width: 48px;
   height: 48px;
   border-radius: 24px;
-  background: ${colors.dangerSurface};
+  background: ${COLORS.dangerSurface};
 `;
 
 const Quote = styled.p`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 20px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: 31px;
   letter-spacing: -0.4px;
 `;
 
 const Detail = styled.p`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 27.2px;
 `;
@@ -124,7 +124,7 @@ export function ProblemSection(): ReactNode {
             <Reveal key={quote} delay={index * 120}>
               <Card>
                 <IconCircle>
-                  <ConcernIcon size={24} color={colors.danger} />
+                  <ConcernIcon size={24} color={COLORS.danger} />
                 </IconCircle>
                 <Quote>{quote}</Quote>
                 <Detail>{detail}</Detail>

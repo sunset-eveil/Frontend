@@ -1,11 +1,11 @@
 import styled from '@emotion/styled';
 import { PaperPlaneTilt, ShieldCheck } from '@phosphor-icons/react';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { button } from '../../components/button';
+import { BUTTON } from '../../components/button';
 import { INQUIRY_EMAIL } from '../../constants/links';
-import { colors, shadows } from '../../styles/colors';
-import { fonts } from '../../styles/fonts';
-import { media } from '../../styles/layout';
+import { COLORS, SHADOWS } from '../../styles/colors';
+import { FONTS } from '../../styles/fonts';
+import { MEDIA } from '../../styles/layout';
 
 const INQUIRY_TYPES: readonly string[] = ['설치·사용 방법', '개인정보 보호', '계정·요금', '오류 신고', '기타'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,7 +43,7 @@ function buildMailto(form: InquiryForm): string {
 
 const Section = styled.section`
   scroll-margin-top: 64px;
-  background: ${colors.background};
+  background: ${COLORS.background};
 `;
 
 const Inner = styled.div`
@@ -55,7 +55,7 @@ const Inner = styled.div`
   margin: 0 auto;
   padding: 88px 24px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     grid-template-columns: 1fr;
     gap: 32px;
     padding: 64px 16px;
@@ -68,21 +68,21 @@ const Intro = styled.div`
 `;
 
 const Eyebrow = styled.span`
-  color: ${colors.primary};
+  color: ${COLORS.primary};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const Title = styled.h2`
   margin-top: 15px;
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 34px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 45.9px;
   letter-spacing: -1.02px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 28px;
     line-height: 38px;
   }
@@ -90,7 +90,7 @@ const Title = styled.h2`
 
 const Lead = styled.p`
   margin-top: 16px;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 16px;
   line-height: 28px;
 `;
@@ -102,8 +102,8 @@ const Notice = styled.p`
   margin-top: 16px;
   padding: 16px 18px;
   border-radius: 12px;
-  background: ${colors.white};
-  color: ${colors.secondary};
+  background: ${COLORS.white};
+  color: ${COLORS.secondary};
   font-size: 14px;
   line-height: 22.4px;
 
@@ -118,10 +118,10 @@ const Card = styled.form`
   gap: 18px;
   padding: 32px;
   border-radius: 18px;
-  background: ${colors.white};
-  box-shadow: ${shadows.form};
+  background: ${COLORS.white};
+  box-shadow: ${SHADOWS.form};
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     padding: 24px 20px;
   }
 `;
@@ -133,48 +133,48 @@ const Field = styled.label`
 `;
 
 const FieldLabel = styled.span`
-  color: ${colors.heading};
+  color: ${COLORS.heading};
   font-size: 14px;
-  font-weight: ${fonts.weight.semibold};
+  font-weight: ${FONTS.weight.semibold};
   line-height: normal;
 `;
 
-const controlStyle = `
+const CONTROL_STYLE = `
   width: 100%;
-  border: 1px solid ${colors.border};
+  border: 1px solid ${COLORS.border};
   border-radius: 10px;
-  background: ${colors.white};
-  color: ${colors.heading};
+  background: ${COLORS.white};
+  color: ${COLORS.heading};
   font-size: 16px;
   outline: none;
 
   &::placeholder {
-    color: ${colors.placeholder};
+    color: ${COLORS.placeholder};
   }
 
   &:focus {
-    border-color: ${colors.primary};
+    border-color: ${COLORS.primary};
   }
 
   &[aria-invalid='true'] {
-    border-color: ${colors.danger};
+    border-color: ${COLORS.danger};
   }
 `;
 
 const Select = styled.select`
-  ${controlStyle};
+  ${CONTROL_STYLE};
   height: 48px;
   padding: 0 30px 0 18px;
 `;
 
 const Input = styled.input`
-  ${controlStyle};
+  ${CONTROL_STYLE};
   height: 48px;
   padding: 0 14px;
 `;
 
 const Textarea = styled.textarea`
-  ${controlStyle};
+  ${CONTROL_STYLE};
   min-height: 180px;
   padding: 12px 14px;
   line-height: 25.6px;
@@ -186,7 +186,7 @@ const Agreement = styled.label`
   gap: 13px;
   align-items: center;
   padding: 3px 4px;
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 14px;
   line-height: normal;
   cursor: pointer;
@@ -196,27 +196,27 @@ const Agreement = styled.label`
     width: 18px;
     height: 18px;
     margin: 0;
-    border: 1px solid ${colors.checkboxBorder};
+    border: 1px solid ${COLORS.checkboxBorder};
     border-radius: 2.5px;
-    background: ${colors.white} center / 12px no-repeat;
+    background: ${COLORS.white} center / 12px no-repeat;
     appearance: none;
     cursor: pointer;
   }
 
   input:checked {
-    border-color: ${colors.primary};
-    background-color: ${colors.primary};
+    border-color: ${COLORS.primary};
+    background-color: ${COLORS.primary};
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 
   input:focus-visible {
-    outline: 2px solid ${colors.primary};
+    outline: 2px solid ${COLORS.primary};
     outline-offset: 2px;
   }
 `;
 
 const ErrorText = styled.span`
-  color: ${colors.danger};
+  color: ${COLORS.danger};
   font-size: 13px;
   line-height: normal;
 `;
@@ -257,7 +257,7 @@ export function ContactSection(): ReactNode {
           <Title>원하는 답을 못 찾으셨나요?</Title>
           <Lead>문의를 남겨 주시면 영업일 기준 24시간 안에 이메일로 답변드려요.</Lead>
           <Notice>
-            <ShieldCheck size={20} color={colors.primary} />
+            <ShieldCheck size={20} color={COLORS.primary} />
             문의 내용에 개인정보(주민번호, 카드번호 등)는 적지 말아 주세요.
           </Notice>
         </Intro>
@@ -310,8 +310,8 @@ export function ContactSection(): ReactNode {
             {errors.hasAgreed && <ErrorText>{errors.hasAgreed}</ErrorText>}
           </div>
 
-          <SubmitButton type="submit" css={button.primaryLarge}>
-            <PaperPlaneTilt size={18} color={colors.white} />
+          <SubmitButton type="submit" css={BUTTON.primaryLarge}>
+            <PaperPlaneTilt size={18} color={COLORS.white} />
             문의 보내기
           </SubmitButton>
           {errors.form && <ErrorText role="alert">{errors.form}</ErrorText>}

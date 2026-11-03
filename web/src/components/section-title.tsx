@@ -1,8 +1,8 @@
 import styled from '@emotion/styled';
 import type { ReactNode } from 'react';
-import { colors } from '../styles/colors';
-import { fonts } from '../styles/fonts';
-import { media } from '../styles/layout';
+import { COLORS } from '../styles/colors';
+import { FONTS } from '../styles/fonts';
+import { MEDIA } from '../styles/layout';
 
 type SectionTitleProps = {
   eyebrow: string;
@@ -20,20 +20,20 @@ const Wrapper = styled.div`
 `;
 
 const Eyebrow = styled.span<{ isDark: boolean }>`
-  color: ${({ isDark }) => (isDark ? colors.mint : colors.primary)};
+  color: ${({ isDark }) => (isDark ? COLORS.mint : COLORS.primary)};
   font-size: 16px;
-  font-weight: ${fonts.weight.bold};
+  font-weight: ${FONTS.weight.bold};
   line-height: normal;
 `;
 
 const Title = styled.h2<{ isDark: boolean }>`
-  color: ${({ isDark }) => (isDark ? colors.white : colors.heading)};
+  color: ${({ isDark }) => (isDark ? COLORS.white : COLORS.heading)};
   font-size: 40px;
-  font-weight: ${fonts.weight.extrabold};
+  font-weight: ${FONTS.weight.extrabold};
   line-height: 54px;
   letter-spacing: -1.2px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 28px;
     line-height: 38px;
     letter-spacing: -0.84px;
@@ -41,11 +41,11 @@ const Title = styled.h2<{ isDark: boolean }>`
 `;
 
 const Description = styled.p`
-  color: ${colors.secondary};
+  color: ${COLORS.secondary};
   font-size: 18px;
   line-height: 30.6px;
 
-  ${media.mobile} {
+  ${MEDIA.mobile} {
     font-size: 16px;
     line-height: 27px;
   }
