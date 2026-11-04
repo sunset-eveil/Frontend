@@ -2,10 +2,8 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from "@emotion/styled";
-import bgImage from "./assets/bg.png";
 import { ComparisonPanel } from "./components/comparison-panel";
 import { EveilButton } from "./components/eveil-button";
-import { Icon, type IconName } from "./components/icon";
 import { InputPanel } from "./components/input-panel";
 import { MaskTypeItem } from "./components/mask-type-item";
 import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
@@ -29,10 +27,6 @@ type Screen = "button" | "chat" | "comparison";
 type TextCaret = {
   start: number;
   end: number;
-};
-type Suggestion = {
-  icon: IconName;
-  label: string;
 };
 type MaskSegment = {
   start: number;
@@ -59,57 +53,13 @@ type DeleteMappingVariables = {
 
 const Page = styled.main`
   display: flex;
-  width: 100%;
-  min-height: 100dvh;
-  overflow-x: hidden;
-  color: ${COLORS.chatText};
-  background-color: ${COLORS.background};
-  background-image: url(${bgImage});
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: cover;
-`;
-
-const Content = styled.section`
-  position: relative;
-  display: flex;
-  flex: 0 0 86.46%;
   flex-direction: column;
-  min-width: 0;
-  min-height: 100dvh;
-  margin-left: 13.54%;
-
-  @media (max-width: 760px) {
-    flex-basis: 100%;
-    margin-left: 0;
-  }
-`;
-
-const Workspace = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100dvh;
-  padding: 38vh 24px 8vh;
-
-  @media (max-width: 520px) {
-    padding: 38vh 12px 6vh;
-  }
-`;
-
-const Heading = styled.h1`
-  margin: 0 0 28px;
-  padding: 2px 12px;
-  color: ${COLORS.heading};
-  background: ${COLORS.background};
-  font-size: clamp(24px, 2.5vw, 30px);
-  font-weight: 500;
-  line-height: 33.6px;
-  letter-spacing: -0.3px;
-`;
-
-const WorkspaceContent = styled.div`
-  width: min(760px, 100%);
+  justify-content: flex-end;
+  width: 760px;
+  max-width: 100vw;
+  gap: 12px;
+  min-height: 220px;
+  padding: 16px;
 `;
 
 const SendStatus = styled.p<{ isError?: boolean }>`
@@ -120,94 +70,11 @@ const SendStatus = styled.p<{ isError?: boolean }>`
   line-height: 1.5;
 `;
 
-const Prompt = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 58px;
-  padding: 0 10px 0 16px;
-  border: 1px solid ${COLORS.chatInputBorder};
-  border-radius: 28px;
-  background: ${COLORS.chatInput};
-`;
-
-const PromptInput = styled.input`
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  color: ${COLORS.text};
-  background: transparent;
-  font-size: 16px;
-
-  &::placeholder {
-    color: ${COLORS.chatMuted};
-    opacity: 1;
-  }
-`;
-
-const PromptMode = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: 0;
-  color: ${COLORS.chatText};
-  font-size: 16px;
-`;
-
 const EveilSlot = styled.div`
   width: 74px;
   height: 36px;
+  align-self: flex-end;
 `;
-
-const SendButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 6px;
-  border: 0;
-  border-radius: 50%;
-  background: ${COLORS.chatButton};
-`;
-
-const Suggestions = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 24px 8px 0;
-`;
-
-const SuggestionButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 12px;
-  border: 0;
-  border-radius: 12px;
-  color: ${COLORS.chatText};
-  background: transparent;
-  font-size: 16px;
-  text-align: left;
-
-  &:hover {
-    background: ${COLORS.chatSelected};
-  }
-`;
-
-const suggestions: Suggestion[] = [
-  { icon: "file", label: "이력서 자기소개 부분 다듬어 줘" },
-  { icon: "package", label: "010-5821-3304로 온 택배 문자가 진짜인지 봐줘" },
-  {
-    icon: "firstAid",
-    label: "주민번호 950412-2123456으로 보험 청구하는 방법 알려줘",
-  },
-];
 
 function countOccurrences(text: string, query: string): number {
   if (!query) return 0;
@@ -639,66 +506,18 @@ export function PreviewPage(): ReactNode {
 
   return (
     <Page>
-      <Content>
-        <Workspace>
-          <Heading>준비되면 시작하세요.</Heading>
-          {screen === "button" && (
-            <WorkspaceContent>
-              <Prompt>
-                <Icon name="plus" />
-                <PromptInput
-                  aria-label="ChatGPT 메시지 입력"
-                  value={value}
-                  onChange={(event) => {
-                    setValue(event.target.value);
-                    setCaret({
-                      start:
-                        event.target.selectionStart ??
-                        event.target.value.length,
-                      end:
-                        event.target.selectionEnd ?? event.target.value.length,
-                    });
-                  }}
-                  onSelect={(event) =>
-                    setCaret({
-                      start:
-                        event.currentTarget.selectionStart ??
-                        event.currentTarget.value.length,
-                      end:
-                        event.currentTarget.selectionEnd ??
-                        event.currentTarget.value.length,
-                    })
-                  }
-                  placeholder="ChatGPT에게 물어보세요"
-                />
-                <EveilSlot>
-                  <EveilButton
-                    onClick={() => {
-                      setScreen("chat");
-                      setShowHint(false);
-                    }}
-                    isHintVisible={isHintVisible}
-                    onDismissHint={() => setShowHint(false)}
-                  />
-                </EveilSlot>
-                <PromptMode>
-                  Instant <Icon name="inputCaret" />
-                </PromptMode>
-                <Icon name="microphone" />
-                <SendButton type="button" aria-label="전송">
-                  <Icon name="arrowUp" />
-                </SendButton>
-              </Prompt>
-              <Suggestions>
-                {suggestions.map((item) => (
-                  <SuggestionButton key={item.label}>
-                    <Icon name={item.icon} />
-                    {item.label}
-                  </SuggestionButton>
-                ))}
-              </Suggestions>
-            </WorkspaceContent>
-          )}
+      {screen === "button" && (
+        <EveilSlot>
+          <EveilButton
+            onClick={() => {
+              setScreen("chat");
+              setShowHint(false);
+            }}
+            isHintVisible={isHintVisible}
+            onDismissHint={() => setShowHint(false)}
+          />
+        </EveilSlot>
+      )}
           {screen === "chat" && (
             <InputPanel
               value={value}
@@ -725,8 +544,6 @@ export function PreviewPage(): ReactNode {
               {sendStatus.message}
             </SendStatus>
           )}
-        </Workspace>
-      </Content>
       {screen === "comparison" && (
         <ComparisonPanel
           original={content(false)}
