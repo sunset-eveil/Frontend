@@ -18,6 +18,7 @@
   let frame: HTMLIFrameElement | undefined;
   let composer: HTMLElement | null = null;
   let isOpen = false;
+  let isExpanded = false;
   let hintDismissed = true;
   let frameHeight = 440;
   let pendingLayout: number | undefined;
@@ -51,7 +52,9 @@
     <style>
       :host { color-scheme: dark; }
       [hidden] { display: none !important; }
-      iframe { position: absolute; display: block; border: 0; border-radius: 20px; background: transparent;
+      .backdrop { position: absolute; inset: 0; background: rgba(8, 9, 18, .78);
+        backdrop-filter: blur(2px); pointer-events: auto; }
+      iframe { position: absolute; z-index: 1; display: block; border: 0; border-radius: 20px; background: transparent;
         pointer-events: auto; color-scheme: dark; }
       .hint { position: absolute; box-sizing: border-box; width: 262px; padding: 13px 14px;
         border: 1px solid #9184d9; border-radius: 12px; background: #242432; color: #eceaf5;
@@ -63,6 +66,7 @@
       .hint::after { content: ''; position: absolute; right: 24px; bottom: -7px; width: 12px; height: 12px;
         border-right: 1px solid #9184d9; border-bottom: 1px solid #9184d9; background: #242432; transform: rotate(45deg); }
     </style>
+    <div class="backdrop" hidden aria-hidden="true"></div>
     <section class="hint" role="region" aria-label="Eveil 사용 안내" hidden>
       <strong>Eveil이 여기 있어요</strong>
       <p>눌러서 보낼 내용을 입력하면 개인정보를 가려서 보내 드려요.</p>
@@ -70,6 +74,7 @@
     </section>
   `;
   const hint = overlayShadow.querySelector<HTMLElement>('.hint')!;
+  const backdrop = overlayShadow.querySelector<HTMLElement>('.backdrop')!;
 
   function dispose(): void {
     if (isDisposed) return;
@@ -121,6 +126,7 @@
     if (!hasContext() || !control.isConnected) return;
     isOpen = nextOpen;
     trigger.setAttribute('aria-expanded', String(isOpen));
+    backdrop.hidden = !isOpen || !isExpanded;
     if (isOpen && !frame) {
       frame = document.createElement('iframe');
       frame.title = 'Eveil 개인정보 가림';
@@ -142,6 +148,7 @@
     if (!hasContext()) return;
     if (!control.isConnected || !composer?.isConnected) {
       hint.hidden = true;
+      backdrop.hidden = true;
       if (frame) frame.hidden = true;
       return;
     }
@@ -169,11 +176,20 @@
     control.style.setProperty('left', `${Math.max(bounds.left + 8, x)}px`, 'important');
     control.style.setProperty('top', `${Math.max(8, y)}px`, 'important');
     const anchor = trigger.getBoundingClientRect();
-    const width = Math.min(760, Math.max(360, bounds.width), window.innerWidth - 24);
-    const height = Math.min(frameHeight, Math.max(120, window.innerHeight - 24));
-    const left = Math.max(12, Math.min(bounds.right - width, window.innerWidth - width - 12));
+    const width = isExpanded
+      ? window.innerWidth
+      : Math.min(760, Math.max(360, bounds.width), window.innerWidth - 24);
+    // The fixed comparison dialog is outside #root's layout. Its viewport must
+    // not shrink to the compact root height reported by ResizeObserver.
+    const height = isExpanded ? window.innerHeight
+      : Math.min(frameHeight, Math.max(120, window.innerHeight - 24));
+    const left = isExpanded
+      ? 0
+      : Math.max(12, Math.min(bounds.right - width, window.innerWidth - width - 12));
     const above = anchor.top - height - 12;
-    const top = above >= 12 ? above : Math.max(12, Math.min(anchor.bottom + 12, window.innerHeight - height - 12));
+    const top = isExpanded
+      ? 0
+      : (above >= 12 ? above : Math.max(12, Math.min(anchor.bottom + 12, window.innerHeight - height - 12)));
     if (frame) {
       frame.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;`;
       frame.hidden = !isOpen;
@@ -231,6 +247,7 @@
     dismissHint();
     setOpen(!isOpen);
   }, eventOptions);
+  backdrop.addEventListener('click', () => setOpen(false), eventOptions);
   hint.querySelector('button')!.addEventListener('click', dismissHint, eventOptions);
   document.addEventListener('pointerdown', (event) => {
     const path = event.composedPath();
@@ -244,6 +261,11 @@
     const data = event.data;
     if (!data || typeof data !== 'object' || !('type' in data)) return;
     if (data.type === 'eveil:close') { setOpen(false); trigger.focus({ preventScroll: true }); }
+    if (data.type === 'eveil:mode' && 'mode' in data && (data.mode === 'chat' || data.mode === 'comparison')) {
+      isExpanded = data.mode === 'comparison';
+      backdrop.hidden = !isOpen || !isExpanded;
+      updatePosition();
+    }
     if (data.type === 'eveil:resize' && 'height' in data && typeof data.height === 'number' && Number.isFinite(data.height)) {
       frameHeight = Math.max(180, Math.min(1000, data.height));
       updatePosition();

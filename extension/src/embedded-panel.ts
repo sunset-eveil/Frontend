@@ -5,6 +5,12 @@ export const IS_EMBEDDED = window.parent !== window &&
   new URLSearchParams(location.search).get('embedded') === '1' &&
   parentOrigin !== null && CHAT_ORIGINS.includes(parentOrigin);
 
+export function notifyEmbeddedMode(mode: 'chat' | 'comparison'): void {
+  if (IS_EMBEDDED && parentOrigin) {
+    window.parent.postMessage({ type: 'eveil:mode', mode }, parentOrigin);
+  }
+}
+
 export function closeEmbeddedPanel(): void {
   if (IS_EMBEDDED && parentOrigin) window.parent.postMessage({ type: 'eveil:close' }, parentOrigin);
 }

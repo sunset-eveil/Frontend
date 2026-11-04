@@ -1,4 +1,4 @@
-import { IS_EMBEDDED, closeEmbeddedPanel } from './embedded-panel';
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode } from './embedded-panel';
 import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -101,6 +101,11 @@ export function PreviewPage(): ReactNode {
     message: string;
     isError: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(screen);
+  }, [screen]);
+
   const mappingsQuery = useQuery({
     queryKey: ['chat-mappings', chatId],
     queryFn: () => getChatMappings(chatId!),
