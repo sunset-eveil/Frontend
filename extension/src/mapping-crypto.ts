@@ -35,26 +35,23 @@ export async function decryptMappings(
     const wrappingKey = await crypto.subtle.importKey(
       'raw',
       decodeBase64(kek),
-      'AES-GCM',
+      'AES-KW',
+      false,
+      ['unwrapKey'],
+    );
+    const aesKey = await crypto.subtle.unwrapKey(
+      'raw',
+      decodeBase64(encrypted.wrappedAesKey),
+      wrappingKey,
+      'AES-KW',
+      { name: 'AES-GCM', length: 256 },
       false,
       ['decrypt'],
-    );
-    const aesKeyBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      wrappingKey,
-      decodeBase64(encrypted.wrappedAesKey),
     );
 
-    if (aesKeyBytes.byteLength !== 32) {
+    if (!('length' in aesKey.algorithm) || aesKey.algorithm.length !== 256) {
       throw new Error();
     }
-    const aesKey = await crypto.subtle.importKey(
-      'raw',
-      aesKeyBytes,
-      'AES-GCM',
-      false,
-      ['decrypt'],
-    );
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       aesKey,
