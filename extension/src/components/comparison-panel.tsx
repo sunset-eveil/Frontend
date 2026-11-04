@@ -24,6 +24,7 @@ type ComparisonPanelProps = {
   count: number;
   maskOptions: MaskDefinition[];
   manualMasks: ManualMask[];
+  isSending?: boolean;
   requestStatus?: { message: string; isError: boolean } | null;
   onClose: () => void;
   onCollapse: () => void;
@@ -280,6 +281,7 @@ export function ComparisonPanel({
   count,
   maskOptions,
   manualMasks,
+  isSending = false,
   requestStatus,
   onClose,
   onCollapse,
@@ -496,7 +498,7 @@ export function ComparisonPanel({
           <Button
             type="button"
             variant="filled"
-            disabled={!onSend}
+            disabled={!onSend || isSending}
             onClick={onSend}
           >
             <Icon name="send" />

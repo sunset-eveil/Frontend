@@ -15,6 +15,39 @@ export function closeEmbeddedPanel(): void {
   if (IS_EMBEDDED && parentOrigin) window.parent.postMessage({ type: 'eveil:close' }, parentOrigin);
 }
 
+export function sendMaskedMessage(text: string): Promise<void> {
+  if (!IS_EMBEDDED || !parentOrigin) {
+    return Promise.reject(new Error('ChatGPT 페이지에서 Eveil을 열어 주세요.'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const requestId = crypto.randomUUID();
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener('message', handleResult);
+      reject(new Error('ChatGPT 전송 응답을 확인하지 못했습니다.'));
+    }, 10_000);
+    const handleResult = (event: MessageEvent<unknown>): void => {
+      if (event.source !== window.parent || event.origin !== parentOrigin) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object' || !('type' in data) ||
+        data.type !== 'eveil:send-result' || !('requestId' in data) ||
+        data.requestId !== requestId) return;
+
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', handleResult);
+      if ('success' in data && data.success === true) {
+        resolve();
+      } else {
+        reject(new Error('message' in data && typeof data.message === 'string'
+          ? data.message : 'ChatGPT로 전송하지 못했습니다.'));
+      }
+    };
+
+    window.addEventListener('message', handleResult);
+    window.parent.postMessage({ type: 'eveil:send-masked', requestId, text }, parentOrigin);
+  });
+}
+
 export function observeEmbeddedPanel(): () => void {
   if (!IS_EMBEDDED || !parentOrigin) return () => undefined;
   document.documentElement.dataset.eveilEmbedded = 'true';
