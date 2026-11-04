@@ -1,3 +1,5 @@
+import { IS_EMBEDDED, closeEmbeddedPanel } from './embedded-panel';
+import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -86,7 +88,7 @@ export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
-  const [screen, setScreen] = useState<Screen>("button");
+  const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
   const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
@@ -204,7 +206,7 @@ export function PreviewPage(): ReactNode {
   const countMatches = (definition: MaskDefinition): number => {
     if (activeMappings) {
       return activeMappings
-        .filter((mapping) => mapping.type === definition.id.toUpperCase())
+        .filter((mapping) => mapping.type === getMaskingTypeCode(definition.id))
         .reduce((total, mapping) => total +
           countOccurrences(value, mapping.value) +
           countOccurrences(value, mapping.maskCode), 0);
@@ -392,7 +394,7 @@ export function PreviewPage(): ReactNode {
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
         ? (mappings
-            ? mappings.filter((mapping) => mapping.type === definition.id.toUpperCase())
+            ? mappings.filter((mapping) => mapping.type === getMaskingTypeCode(definition.id))
             : (globalThis.chrome?.storage ? [] : definition.values).map(
                 (valueToMask) => ({ value: valueToMask, maskCode: '' }),
               ))
@@ -417,7 +419,7 @@ export function PreviewPage(): ReactNode {
     const codeSegments: MaskSegment[] = isMasked
       ? (mappings ?? []).flatMap((mapping) => {
           const definition = MASK_DEFINITIONS.find(
-            (item) => item.id.toUpperCase() === mapping.type,
+            (item) => getMaskingTypeCode(item.id) === mapping.type,
           );
 
           if (!definition || !mapping.maskCode) return [];
@@ -529,7 +531,7 @@ export function PreviewPage(): ReactNode {
               count={count}
               caret={caret}
               onCaretChange={setCaret}
-              onClose={() => setScreen("button")}
+              onClose={() => IS_EMBEDDED ? closeEmbeddedPanel() : setScreen("button")}
               onExpand={() => setScreen("comparison")}
               onSettings={() => setScreen("comparison")}
               onSend={sendForMasking}

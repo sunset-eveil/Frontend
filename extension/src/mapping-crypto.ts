@@ -48,10 +48,6 @@ export async function decryptMappings(
       false,
       ['decrypt'],
     );
-
-    if (!('length' in aesKey.algorithm) || aesKey.algorithm.length !== 256) {
-      throw new Error();
-    }
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       aesKey,

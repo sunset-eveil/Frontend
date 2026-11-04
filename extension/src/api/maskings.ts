@@ -15,12 +15,16 @@ const TYPE_CODES: Record<MaskTypeId, string> = {
   name: 'NAME',
   phone: 'PHONE',
   email: 'EMAIL',
-  resident: 'RESIDENT',
-  payment: 'PAYMENT',
+  resident: 'RRN',
+  payment: 'CARD_ACCOUNT',
   address: 'ADDRESS',
   amount: 'AMOUNT',
-  custom: 'CUSTOM',
+  custom: 'ETC',
 };
+
+export function getMaskingTypeCode(type: MaskTypeId): string {
+  return TYPE_CODES[type];
+}
 
 async function request(
   chatId: string,
