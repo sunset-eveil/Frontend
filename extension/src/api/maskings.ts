@@ -109,10 +109,6 @@ export async function putMapping(
   });
 }
 
-export function getMaskCode(type: MaskTypeId, sequence: number): string {
-  return `${TYPE_CODES[type]}${sequence}`;
-}
-
 export async function deleteMapping(chatId: string, maskCode: string): Promise<void> {
   await request(chatId, 'DELETE', `mappings/${encodeURIComponent(maskCode)}`);
 }

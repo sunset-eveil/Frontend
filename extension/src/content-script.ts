@@ -223,6 +223,62 @@
     updatePosition();
   }
 
+  async function submitMaskedText(text: string): Promise<void> {
+    const editor = Array.from(document.querySelectorAll<HTMLElement>(
+      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder]',
+    )).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    if (!editor || !text.trim()) throw new Error('ChatGPT 입력창을 찾을 수 없습니다.');
+
+    const currentText = editor instanceof HTMLTextAreaElement
+      ? editor.value : editor.innerText;
+    if (currentText.trim()) {
+      throw new Error('ChatGPT 입력창에 작성 중인 내용을 먼저 비워 주세요.');
+    }
+
+    editor.focus();
+    if (editor instanceof HTMLTextAreaElement) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(editor, text);
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+    } else if (editor.isContentEditable) {
+      document.execCommand('insertText', false, text);
+    } else {
+      throw new Error('ChatGPT 입력창에 내용을 입력할 수 없습니다.');
+    }
+
+    const insertedText = editor instanceof HTMLTextAreaElement
+      ? editor.value : editor.innerText;
+    if (insertedText.replace(/\r\n/g, '\n').trim() !== text.trim()) {
+      throw new Error('ChatGPT 입력창에 가린 내용을 넣지 못했습니다.');
+    }
+
+    const form = editor.closest('form') ?? document;
+    let submit: HTMLButtonElement | null = null;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      submit = form.querySelector<HTMLButtonElement>(
+        '#composer-submit-button, [data-testid="send-button"]',
+      );
+      if (submit && !submit.disabled && submit.getAttribute('aria-disabled') !== 'true') break;
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    if (!submit || submit.disabled || submit.getAttribute('aria-disabled') === 'true') {
+      throw new Error('ChatGPT 전송 버튼을 사용할 수 없습니다.');
+    }
+    const initialUrl = location.href;
+    submit.click();
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      if (!editor.isConnected && location.href !== initialUrl) return;
+      const remaining = editor instanceof HTMLTextAreaElement
+        ? editor.value : editor.innerText;
+      if (!remaining.trim()) return;
+    }
+    throw new Error('ChatGPT 입력창에 내용이 남아 있습니다. 전송 여부를 확인해 주세요.');
+  }
+
   function notifyConversationChange(): void {
     if (location.href === lastUrl) return;
     if (lastUrl) setOpen(false);
@@ -260,6 +316,20 @@
     if (!frame || event.source !== frame.contentWindow || event.origin !== EXTENSION_ORIGIN) return;
     const data = event.data;
     if (!data || typeof data !== 'object' || !('type' in data)) return;
+    if (data.type === 'eveil:send-masked' && 'requestId' in data &&
+      typeof data.requestId === 'string' && 'text' in data && typeof data.text === 'string') {
+      const targetFrame = frame.contentWindow;
+      void submitMaskedText(data.text).then(() => {
+        targetFrame?.postMessage({ type: 'eveil:send-result', requestId: data.requestId, success: true }, EXTENSION_ORIGIN);
+      }).catch((error: unknown) => {
+        targetFrame?.postMessage({
+          type: 'eveil:send-result',
+          requestId: data.requestId,
+          success: false,
+          message: error instanceof Error ? error.message : 'ChatGPT로 전송하지 못했습니다.',
+        }, EXTENSION_ORIGIN);
+      });
+    }
     if (data.type === 'eveil:close') { setOpen(false); trigger.focus({ preventScroll: true }); }
     if (data.type === 'eveil:mode' && 'mode' in data && (data.mode === 'chat' || data.mode === 'comparison')) {
       isExpanded = data.mode === 'comparison';
