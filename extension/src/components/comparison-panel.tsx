@@ -78,8 +78,9 @@ const Dialog = styled.dialog`
 const Comparison = styled(Panel)`
   display: flex;
   flex-direction: column;
-  width: 1180px;
-  height: min(760px, calc(100dvh - 48px));
+  width: 980px;
+  height: min(630px, calc(100dvh - 48px));
+  flex-shrink: 0;
 
   @media (max-width: 760px) {
     height: calc(100dvh - 16px);

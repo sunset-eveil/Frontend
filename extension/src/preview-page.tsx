@@ -1,6 +1,8 @@
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode } from './embedded-panel';
+import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import styled from "@emotion/styled";
 import { ComparisonPanel } from "./components/comparison-panel";
 import { EveilButton } from "./components/eveil-button";
@@ -82,11 +84,10 @@ function countOccurrences(text: string, query: string): number {
 }
 
 export function PreviewPage(): ReactNode {
-  const queryClient = useQueryClient();
   const [chatId, setChatId] = useState<string>();
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
-  const [screen, setScreen] = useState<Screen>("button");
+  const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
   const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
@@ -99,35 +100,43 @@ export function PreviewPage(): ReactNode {
     message: string;
     isError: boolean;
   } | null>(null);
-  const mappingsQuery = useQuery({
-    queryKey: ['chat-mappings', chatId],
-    queryFn: () => getChatMappings(chatId!),
-    enabled: false,
-    staleTime: Infinity,
-  });
+
+  useEffect(() => {
+    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(screen);
+  }, [screen]);
+
+  const [mappingResult, setMappingResult] = useState<{ chatId: string; mappings: ChatMapping[] }>();
+  const [isFetchingMappings, setFetchingMappings] = useState(false);
+  const loadMappings = async (requestedChatId: string): Promise<ChatMapping[]> => {
+    setFetchingMappings(true);
+    try {
+      const mappings = await getChatMappings(requestedChatId);
+      if (activeChatId.current === requestedChatId) setMappingResult({ chatId: requestedChatId, mappings });
+      return mappings;
+    } finally {
+      setFetchingMappings(false);
+    }
+  };
   const createMaskingMutation = useMutation({
     mutationFn: ({ chatId, text, enabledTypes }: MaskingVariables) =>
       createMasking(chatId, text, enabledTypes),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const putMappingMutation = useMutation({
     mutationFn: ({ chatId, value, type }: MappingVariables) =>
       putMapping(chatId, value, type),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const deleteMappingMutation = useMutation({
     mutationFn: ({ chatId, maskCode }: DeleteMappingVariables) =>
       deleteMapping(chatId, maskCode),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const isSending = createMaskingMutation.isPending ||
     putMappingMutation.isPending || deleteMappingMutation.isPending ||
-    mappingsQuery.isFetching;
-  const activeMappings = maskedValue === value && !mappingsQuery.isStale
-    ? mappingsQuery.data
+    isFetchingMappings;
+  const activeMappings = maskedValue === value && mappingResult?.chatId === chatId
+    ? mappingResult?.mappings
     : undefined;
 
   useEffect(() => {
@@ -143,6 +152,7 @@ export function PreviewPage(): ReactNode {
         if (activeChatId.current) {
           setValue('');
           setMaskedValue(null);
+          setMappingResult(undefined);
           setManualMasks([]);
           setEnabled(MASK_DEFINITIONS.map(() => true));
           setView('original');
@@ -204,7 +214,7 @@ export function PreviewPage(): ReactNode {
   const countMatches = (definition: MaskDefinition): number => {
     if (activeMappings) {
       return activeMappings
-        .filter((mapping) => mapping.type === definition.id.toUpperCase())
+        .filter((mapping) => mapping.type === getMaskingTypeCode(definition.id))
         .reduce((total, mapping) => total +
           countOccurrences(value, mapping.value) +
           countOccurrences(value, mapping.maskCode), 0);
@@ -267,11 +277,7 @@ export function PreviewPage(): ReactNode {
       });
       setMaskedValue(value);
       try {
-        await queryClient.fetchQuery({
-          queryKey: ['chat-mappings', chatId],
-          queryFn: () => getChatMappings(chatId),
-          staleTime: Infinity,
-        });
+        await loadMappings(chatId);
       } catch {
         setSendStatus({
           message: '마스킹은 완료됐지만 매핑을 불러오지 못했습니다.',
@@ -301,6 +307,11 @@ export function PreviewPage(): ReactNode {
     }
   };
 
+  const openComparison = (): void => {
+    setScreen('comparison');
+    if (value.trim() && !isSending) void sendForMasking();
+  };
+
   const changeMaskType = async (index: number, isChecked: boolean): Promise<void> => {
     if (!isChecked) {
       if (!chatId) {
@@ -309,11 +320,7 @@ export function PreviewPage(): ReactNode {
       }
 
       try {
-        const mappings = await queryClient.fetchQuery({
-          queryKey: ['chat-mappings', chatId],
-          queryFn: () => getChatMappings(chatId),
-          staleTime: Infinity,
-        });
+        const mappings = await loadMappings(chatId);
         if (activeChatId.current !== chatId) return;
 
         if (mappings.some((mapping) => value.includes(mapping.maskCode))) {
@@ -392,7 +399,7 @@ export function PreviewPage(): ReactNode {
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
         ? (mappings
-            ? mappings.filter((mapping) => mapping.type === definition.id.toUpperCase())
+            ? mappings.filter((mapping) => mapping.type === getMaskingTypeCode(definition.id))
             : (globalThis.chrome?.storage ? [] : definition.values).map(
                 (valueToMask) => ({ value: valueToMask, maskCode: '' }),
               ))
@@ -417,7 +424,7 @@ export function PreviewPage(): ReactNode {
     const codeSegments: MaskSegment[] = isMasked
       ? (mappings ?? []).flatMap((mapping) => {
           const definition = MASK_DEFINITIONS.find(
-            (item) => item.id.toUpperCase() === mapping.type,
+            (item) => getMaskingTypeCode(item.id) === mapping.type,
           );
 
           if (!definition || !mapping.maskCode) return [];
@@ -529,14 +536,14 @@ export function PreviewPage(): ReactNode {
               count={count}
               caret={caret}
               onCaretChange={setCaret}
-              onClose={() => setScreen("button")}
-              onExpand={() => setScreen("comparison")}
-              onSettings={() => setScreen("comparison")}
+              onClose={() => IS_EMBEDDED ? closeEmbeddedPanel() : setScreen("button")}
+              onExpand={openComparison}
+              onSettings={openComparison}
               onSend={sendForMasking}
               isSending={isSending}
             />
           )}
-          {screen === "chat" && sendStatus && (
+          {screen === "chat" && sendStatus?.isError && (
             <SendStatus
               role={sendStatus.isError ? "alert" : "status"}
               isError={sendStatus.isError}
@@ -551,7 +558,7 @@ export function PreviewPage(): ReactNode {
           count={count}
           maskOptions={MASK_DEFINITIONS}
           manualMasks={manualMasks}
-          requestStatus={sendStatus}
+          requestStatus={sendStatus?.isError ? sendStatus : null}
           onClose={() => setScreen("chat")}
           onCollapse={() => setScreen("chat")}
           onAddManualMask={addManualMask}

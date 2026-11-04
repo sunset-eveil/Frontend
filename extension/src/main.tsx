@@ -4,6 +4,9 @@ import { Global } from '@emotion/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GLOBAL_STYLES } from './styles/global';
 import App from './app';
+import { observeEmbeddedPanel } from './embedded-panel';
+
+observeEmbeddedPanel();
 
 const QUERY_CLIENT = new QueryClient();
 

@@ -10,6 +10,10 @@ export const GLOBAL_STYLES = css`
     background: ${COLORS.background};
   }
 
+  :root[data-eveil-embedded="true"] {
+    background: transparent;
+  }
+
   body {
     min-width: 320px;
     margin: 0;
