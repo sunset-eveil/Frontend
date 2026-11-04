@@ -15,12 +15,16 @@ const TYPE_CODES: Record<MaskTypeId, string> = {
   name: 'NAME',
   phone: 'PHONE',
   email: 'EMAIL',
-  resident: 'RESIDENT',
-  payment: 'PAYMENT',
+  resident: 'RRN',
+  payment: 'CARD_ACCOUNT',
   address: 'ADDRESS',
   amount: 'AMOUNT',
-  custom: 'CUSTOM',
+  custom: 'ETC',
 };
+
+export function getMaskingTypeCode(type: MaskTypeId): string {
+  return TYPE_CODES[type];
+}
 
 async function request(
   chatId: string,
@@ -103,10 +107,6 @@ export async function putMapping(
     value: value.trim(),
     type: TYPE_CODES[type],
   });
-}
-
-export function getMaskCode(type: MaskTypeId, sequence: number): string {
-  return `${TYPE_CODES[type]}${sequence}`;
 }
 
 export async function deleteMapping(chatId: string, maskCode: string): Promise<void> {

@@ -1,6 +1,8 @@
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage } from './embedded-panel';
+import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import styled from "@emotion/styled";
 import { ComparisonPanel } from "./components/comparison-panel";
 import { EveilButton } from "./components/eveil-button";
@@ -19,7 +21,6 @@ import { getChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
   createMasking,
   deleteMapping,
-  getMaskCode,
   putMapping,
 } from "./api/maskings";
 
@@ -82,52 +83,67 @@ function countOccurrences(text: string, query: string): number {
 }
 
 export function PreviewPage(): ReactNode {
-  const queryClient = useQueryClient();
   const [chatId, setChatId] = useState<string>();
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
-  const [screen, setScreen] = useState<Screen>("button");
+  const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
   const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
   const [value, setValue] = useState("");
+  const latestValue = useRef(value);
+  latestValue.current = value;
   const [caret, setCaret] = useState<TextCaret>({ start: 0, end: 0 });
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
+  const latestEnabled = useRef(enabled);
+  latestEnabled.current = enabled;
   const [manualMasks, setManualMasks] = useState<ManualMask[]>([]);
+  const latestManualMasks = useRef(manualMasks);
+  latestManualMasks.current = manualMasks;
   const [sendStatus, setSendStatus] = useState<{
     message: string;
     isError: boolean;
   } | null>(null);
-  const mappingsQuery = useQuery({
-    queryKey: ['chat-mappings', chatId],
-    queryFn: () => getChatMappings(chatId!),
-    enabled: false,
-    staleTime: Infinity,
-  });
+  const [isPosting, setPosting] = useState(false);
+  const sendInProgress = useRef(false);
+
+  useEffect(() => {
+    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(screen);
+  }, [screen]);
+
+  const [mappingResult, setMappingResult] = useState<{ chatId: string; mappings: ChatMapping[] }>();
+  const [isFetchingMappings, setFetchingMappings] = useState(false);
+  const loadMappings = async (requestedChatId: string): Promise<ChatMapping[]> => {
+    setFetchingMappings(true);
+    try {
+      const mappings = await getChatMappings(requestedChatId);
+      if (activeChatId.current === requestedChatId) setMappingResult({ chatId: requestedChatId, mappings });
+      return mappings;
+    } finally {
+      setFetchingMappings(false);
+    }
+  };
   const createMaskingMutation = useMutation({
     mutationFn: ({ chatId, text, enabledTypes }: MaskingVariables) =>
       createMasking(chatId, text, enabledTypes),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const putMappingMutation = useMutation({
     mutationFn: ({ chatId, value, type }: MappingVariables) =>
       putMapping(chatId, value, type),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const deleteMappingMutation = useMutation({
     mutationFn: ({ chatId, maskCode }: DeleteMappingVariables) =>
       deleteMapping(chatId, maskCode),
-    onSuccess: (_result, { chatId }) =>
-      queryClient.invalidateQueries({ queryKey: ['chat-mappings', chatId] }),
+    onSuccess: () => setMappingResult(undefined),
   });
   const isSending = createMaskingMutation.isPending ||
     putMappingMutation.isPending || deleteMappingMutation.isPending ||
-    mappingsQuery.isFetching;
-  const activeMappings = maskedValue === value && !mappingsQuery.isStale
-    ? mappingsQuery.data
+    isFetchingMappings || isPosting;
+  const activeMappings = maskedValue === value && mappingResult?.chatId === chatId
+    ? mappingResult?.mappings
     : undefined;
 
   useEffect(() => {
@@ -143,6 +159,7 @@ export function PreviewPage(): ReactNode {
         if (activeChatId.current) {
           setValue('');
           setMaskedValue(null);
+          setMappingResult(undefined);
           setManualMasks([]);
           setEnabled(MASK_DEFINITIONS.map(() => true));
           setView('original');
@@ -204,7 +221,7 @@ export function PreviewPage(): ReactNode {
   const countMatches = (definition: MaskDefinition): number => {
     if (activeMappings) {
       return activeMappings
-        .filter((mapping) => mapping.type === definition.id.toUpperCase())
+        .filter((mapping) => mapping.type === getMaskingTypeCode(definition.id))
         .reduce((total, mapping) => total +
           countOccurrences(value, mapping.value) +
           countOccurrences(value, mapping.maskCode), 0);
@@ -250,10 +267,10 @@ export function PreviewPage(): ReactNode {
     }
   };
 
-  const sendForMasking = async (): Promise<void> => {
+  const maskForPreview = async (): Promise<ChatMapping[] | undefined> => {
     if (!value.trim()) {
       setSendStatus({ message: "마스킹할 내용을 입력해 주세요.", isError: true });
-      return;
+      return undefined;
     }
     setSendStatus({ message: "마스킹 API에 요청 중입니다…", isError: false });
     try {
@@ -267,22 +284,20 @@ export function PreviewPage(): ReactNode {
       });
       setMaskedValue(value);
       try {
-        await queryClient.fetchQuery({
-          queryKey: ['chat-mappings', chatId],
-          queryFn: () => getChatMappings(chatId),
-          staleTime: Infinity,
+        const mappings = await loadMappings(chatId);
+        if (activeChatId.current !== chatId) return undefined;
+        setSendStatus({
+          message: "마스킹 매핑이 업데이트됐습니다. (HTTP 204)",
+          isError: false,
         });
+        return mappings;
       } catch {
         setSendStatus({
           message: '마스킹은 완료됐지만 매핑을 불러오지 못했습니다.',
           isError: true,
         });
-        return;
+        return undefined;
       }
-      setSendStatus({
-        message: "마스킹 매핑이 업데이트됐습니다. (HTTP 204)",
-        isError: false,
-      });
     } catch (error) {
       setSendStatus({
         message:
@@ -291,14 +306,20 @@ export function PreviewPage(): ReactNode {
             : "마스킹 요청에 실패했습니다.",
         isError: true,
       });
+      return undefined;
     }
   };
 
   const changeView = (nextView: "original" | "masked"): void => {
     setView(nextView);
     if (nextView === "masked") {
-      void sendForMasking();
+      void maskForPreview();
     }
+  };
+
+  const openComparison = (): void => {
+    setScreen('comparison');
+    if (value.trim() && !isSending) void maskForPreview();
   };
 
   const changeMaskType = async (index: number, isChecked: boolean): Promise<void> => {
@@ -309,11 +330,7 @@ export function PreviewPage(): ReactNode {
       }
 
       try {
-        const mappings = await queryClient.fetchQuery({
-          queryKey: ['chat-mappings', chatId],
-          queryFn: () => getChatMappings(chatId),
-          staleTime: Infinity,
-        });
+        const mappings = await loadMappings(chatId);
         if (activeChatId.current !== chatId) return;
 
         if (mappings.some((mapping) => value.includes(mapping.maskCode))) {
@@ -343,19 +360,54 @@ export function PreviewPage(): ReactNode {
       return;
     }
 
-    const sequence =
-      manualMasks.filter((item) => item.type === mask.type).length + 1;
-    const maskCode = getMaskCode(mask.type, sequence);
     setSendStatus({
       message: "선택한 마스킹 매핑을 저장하는 중입니다…",
       isError: false,
     });
     try {
       if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
+      const previousMappings = await loadMappings(chatId);
       await putMappingMutation.mutateAsync({
         chatId,
         value: mask.text,
         type: mask.type,
+      });
+      const mappings = await loadMappings(chatId);
+      if (activeChatId.current !== chatId) return;
+
+      const matching = mappings.filter(
+        (item) => item.value === mask.text.trim() && item.type === getMaskingTypeCode(mask.type),
+      );
+      const newMappings = matching.filter(
+        (item) => !previousMappings.some((previous) => previous.maskCode === item.maskCode),
+      );
+      const mapping = newMappings.length === 1
+        ? newMappings[0]
+        : newMappings.length === 0 && matching.length === 1
+          ? matching[0]
+          : undefined;
+
+      if (!mapping) throw new Error('저장된 매핑 코드를 확인할 수 없습니다. 다시 시도해 주세요.');
+
+      const sequence = mapping.maskCode.match(/\d+$/)?.[0];
+      setManualMasks((previous) => {
+        const remaining = previous.filter(
+          (item) => item.end <= mask.start || item.start >= mask.end,
+        );
+
+        return [
+          ...remaining,
+          {
+            ...mask,
+            id: `manual-${Date.now()}`,
+            label: sequence ? `${definition.label}_${sequence}` : definition.label,
+            maskCode: mapping.maskCode,
+          },
+        ];
+      });
+      setSendStatus({
+        message: '선택한 마스킹 매핑을 저장했습니다.',
+        isError: false,
       });
     } catch (error) {
       setSendStatus({
@@ -363,36 +415,17 @@ export function PreviewPage(): ReactNode {
           error instanceof Error ? error.message : "매핑 저장에 실패했습니다.",
         isError: true,
       });
-      return;
     }
-
-    setManualMasks((previous) => {
-      const remaining = previous.filter(
-        (item) => item.end <= mask.start || item.start >= mask.end,
-      );
-
-      return [
-        ...remaining,
-        {
-          ...mask,
-          id: `manual-${Date.now()}`,
-          label: `${definition.label}_${sequence}`,
-          maskCode,
-        },
-      ];
-    });
-    setSendStatus({
-      message: "선택한 마스킹 매핑을 저장했습니다. (HTTP 204)",
-      isError: false,
-    });
   };
 
-  const content = (isMasked: boolean): ReactNode[] => {
-    const mappings = activeMappings;
+  const getMaskSegments = (
+    isMasked: boolean,
+    mappings: ChatMapping[] | undefined = activeMappings,
+  ): MaskSegment[] => {
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
         ? (mappings
-            ? mappings.filter((mapping) => mapping.type === definition.id.toUpperCase())
+            ? mappings.filter((mapping) => mapping.type === getMaskingTypeCode(definition.id) && mapping.value.length > 0)
             : (globalThis.chrome?.storage ? [] : definition.values).map(
                 (valueToMask) => ({ value: valueToMask, maskCode: '' }),
               ))
@@ -417,7 +450,7 @@ export function PreviewPage(): ReactNode {
     const codeSegments: MaskSegment[] = isMasked
       ? (mappings ?? []).flatMap((mapping) => {
           const definition = MASK_DEFINITIONS.find(
-            (item) => item.id.toUpperCase() === mapping.type,
+            (item) => getMaskingTypeCode(item.id) === mapping.type,
           );
 
           if (!definition || !mapping.maskCode) return [];
@@ -461,7 +494,7 @@ export function PreviewPage(): ReactNode {
       ...codeSegments,
       ...manual,
     ]
-      .sort((first, second) => first.start - second.start)
+      .sort((first, second) => first.start - second.start || second.end - first.end)
       .reduce<MaskSegment[]>((result, segment) => {
         const previous = result.at(-1);
 
@@ -471,6 +504,11 @@ export function PreviewPage(): ReactNode {
 
         return result;
       }, []);
+    return segments;
+  };
+
+  const content = (isMasked: boolean): ReactNode[] => {
+    const segments = getMaskSegments(isMasked);
     const result = [];
     let cursor = 0;
 
@@ -504,6 +542,70 @@ export function PreviewPage(): ReactNode {
     return result;
   };
 
+  const toMaskedText = (mappings: ChatMapping[]): string => {
+    const segments = getMaskSegments(true, mappings);
+    let maskedText = '';
+    let cursor = 0;
+
+    for (const segment of segments) {
+      maskedText += value.slice(cursor, segment.start);
+      const original = value.slice(segment.start, segment.end);
+      const replacement = segment.isRevealed
+        ? segment.mapping?.value ?? original
+        : segment.manual?.maskCode ?? segment.mapping?.maskCode;
+      if (!replacement) throw new Error('가릴 내용의 매핑 코드를 확인할 수 없습니다.');
+      maskedText += replacement;
+      cursor = segment.end;
+    }
+
+    return maskedText + value.slice(cursor);
+  };
+
+  const handleInputChange = (nextValue: string): void => {
+    if (nextValue === value) return;
+    setValue(nextValue);
+    setManualMasks([]);
+    setMaskedValue(null);
+    setMappingResult(undefined);
+  };
+
+  const sendToChatGpt = async (): Promise<void> => {
+    if (sendInProgress.current || isSending) return;
+    sendInProgress.current = true;
+    setPosting(true);
+    const sourceText = value;
+    const sourceChatId = chatId;
+    const sourceEnabled = enabled;
+    const sourceManualMasks = manualMasks;
+
+    try {
+      const mappings = await maskForPreview();
+      if (!mappings) return;
+      if (activeChatId.current !== sourceChatId || latestValue.current !== sourceText ||
+        latestEnabled.current !== sourceEnabled || latestManualMasks.current !== sourceManualMasks) {
+        throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
+      }
+
+      await sendMaskedMessage(toMaskedText(mappings));
+      setValue('');
+      setCaret({ start: 0, end: 0 });
+      setMaskedValue(null);
+      setMappingResult(undefined);
+      setManualMasks([]);
+      setView('original');
+      setSendStatus(null);
+      closeEmbeddedPanel();
+    } catch (error) {
+      setSendStatus({
+        message: error instanceof Error ? error.message : 'ChatGPT로 전송하지 못했습니다.',
+        isError: true,
+      });
+    } finally {
+      sendInProgress.current = false;
+      setPosting(false);
+    }
+  };
+
   return (
     <Page>
       {screen === "button" && (
@@ -521,7 +623,7 @@ export function PreviewPage(): ReactNode {
           {screen === "chat" && (
             <InputPanel
               value={value}
-              onChange={setValue}
+              onChange={handleInputChange}
               view={view}
               onViewChange={changeView}
               originalContent={content(false)}
@@ -529,14 +631,14 @@ export function PreviewPage(): ReactNode {
               count={count}
               caret={caret}
               onCaretChange={setCaret}
-              onClose={() => setScreen("button")}
-              onExpand={() => setScreen("comparison")}
-              onSettings={() => setScreen("comparison")}
-              onSend={sendForMasking}
+              onClose={() => IS_EMBEDDED ? closeEmbeddedPanel() : setScreen("button")}
+              onExpand={openComparison}
+              onSettings={openComparison}
+              onSend={sendToChatGpt}
               isSending={isSending}
             />
           )}
-          {screen === "chat" && sendStatus && (
+          {screen === "chat" && sendStatus?.isError && (
             <SendStatus
               role={sendStatus.isError ? "alert" : "status"}
               isError={sendStatus.isError}
@@ -551,12 +653,13 @@ export function PreviewPage(): ReactNode {
           count={count}
           maskOptions={MASK_DEFINITIONS}
           manualMasks={manualMasks}
-          requestStatus={sendStatus}
+          isSending={isSending}
+          requestStatus={sendStatus?.isError ? sendStatus : null}
           onClose={() => setScreen("chat")}
           onCollapse={() => setScreen("chat")}
           onAddManualMask={addManualMask}
           onRemoveManualMask={removeManualMask}
-          onSend={sendForMasking}
+          onSend={sendToChatGpt}
           types={MASK_DEFINITIONS.map((definition, index) => (
             <MaskTypeItem
               key={definition.id}

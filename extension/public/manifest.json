@@ -3,15 +3,42 @@
   "name": "Eveil",
   "version": "0.0.1",
   "description": "Eveil Chrome extension",
-  "permissions": ["storage", "activeTab"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
-      "js": ["content-script.js"]
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "content-script.js"
+      ]
     }
   ],
   "action": {
-    "default_title": "Eveil",
-    "default_popup": "index.html"
-  }
+    "default_title": "Eveil 입력창 열기"
+  },
+  "host_permissions": [
+    "https://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "index.html",
+        "index.js",
+        "assets/*"
+      ],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ]
+    }
+  ]
 }
