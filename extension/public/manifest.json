@@ -3,6 +3,13 @@
   "name": "Eveil",
   "version": "0.0.1",
   "description": "Eveil Chrome extension",
+  "permissions": ["storage", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["content-script.js"]
+    }
+  ],
   "action": {
     "default_title": "Eveil",
     "default_popup": "index.html"

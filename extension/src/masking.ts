@@ -1,4 +1,4 @@
-import type { IconName } from "./components/Icon";
+import type { IconName } from "./components/icon";
 
 export type MaskTypeId =
   | "name"
@@ -7,6 +7,7 @@ export type MaskTypeId =
   | "resident"
   | "payment"
   | "address"
+  | "amount"
   | "custom";
 
 export type MaskDefinition = {
@@ -24,7 +25,8 @@ export type ManualMask = {
   text: string;
   type: MaskTypeId;
   label: string;
-  remember: boolean;
+  maskCode: string;
+  shouldRemember: boolean;
 };
 
 export const MASK_DEFINITIONS: MaskDefinition[] = [
@@ -69,6 +71,13 @@ export const MASK_DEFINITIONS: MaskDefinition[] = [
     icon: "pin",
     chip: "pinChip",
     values: ["대전광역시 유성구 가정북로 76"],
+  },
+  {
+    id: "amount",
+    label: "금액",
+    icon: "card",
+    chip: "card",
+    values: ["4,200만원"],
   },
   {
     id: "custom",

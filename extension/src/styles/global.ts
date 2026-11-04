@@ -1,13 +1,13 @@
 import { css } from '@emotion/react';
-import { colors } from './colors';
-import { fonts } from './fonts';
+import { COLORS } from './colors';
+import { FONTS } from './fonts';
 
-export const globalStyles = css`
+export const GLOBAL_STYLES = css`
   :root {
     color-scheme: dark;
-    font-family: ${fonts.family};
-    color: ${colors.text};
-    background: ${colors.background};
+    font-family: ${FONTS.family};
+    color: ${COLORS.text};
+    background: ${COLORS.background};
   }
 
   body {
@@ -35,7 +35,7 @@ export const globalStyles = css`
 
   button:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid ${colors.indicator};
+    outline: 2px solid ${COLORS.indicator};
     outline-offset: 3px;
   }
 `;

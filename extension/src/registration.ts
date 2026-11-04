@@ -1,0 +1,152 @@
+import { registerClient } from './api/clients';
+
+export type RegistrationMode = 'register' | 'unlock' | 'ready' | 'error';
+
+type RegistrationData = {
+  clientId?: string;
+  salt?: string;
+  isRegistered?: boolean;
+};
+
+export class RegistrationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RegistrationError';
+  }
+}
+
+const LOCAL_KEY = 'eveilRegistration';
+const KEK_SESSION_KEY = 'eveilKek';
+const AUTH_SESSION_KEY = 'eveilAuthKey';
+const ENCODER = new TextEncoder();
+
+function toBase64(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function fromBase64(value: string): Uint8Array<ArrayBuffer> {
+  const decoded = atob(value);
+  const bytes = new Uint8Array(decoded.length);
+
+  for (let index = 0; index < decoded.length; index += 1) {
+    bytes[index] = decoded.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+async function getLocalData(): Promise<RegistrationData> {
+  const stored = await chrome.storage.local.get(LOCAL_KEY);
+  return stored[LOCAL_KEY] ?? {};
+}
+
+export async function getClientCredentials(): Promise<{
+  clientId: string;
+  authKey: string;
+  kek: string;
+}> {
+  const data = await getLocalData();
+  const session = await chrome.storage.session.get([KEK_SESSION_KEY, AUTH_SESSION_KEY]);
+  const authKey = session[AUTH_SESSION_KEY];
+  const kek = session[KEK_SESSION_KEY];
+
+  if (
+    !data.isRegistered || !data.clientId ||
+    typeof authKey !== 'string' || typeof kek !== 'string'
+  ) {
+    throw new RegistrationError('클라이언트 등록 또는 잠금 해제가 필요합니다.');
+  }
+
+  return { clientId: data.clientId, authKey, kek };
+}
+
+export async function getRegistrationMode(): Promise<RegistrationMode> {
+  const data = await getLocalData();
+
+  if (!data.isRegistered) {
+    return 'register';
+  }
+
+  const session = await chrome.storage.session.get([KEK_SESSION_KEY, AUTH_SESSION_KEY]);
+  return session[KEK_SESSION_KEY] && session[AUTH_SESSION_KEY] ? 'ready' : 'unlock';
+}
+
+async function deriveKeys(
+  passphrase: string,
+  salt: string,
+): Promise<{ kek: string; authKey: string }> {
+  const passwordKey = await crypto.subtle.importKey(
+    'raw',
+    ENCODER.encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const masterBits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(salt), iterations: 600_000 },
+    passwordKey,
+    256,
+  );
+  const masterKey = await crypto.subtle.importKey(
+    'raw',
+    masterBits,
+    'HKDF',
+    false,
+    ['deriveBits'],
+  );
+  const derive = async (info: string): Promise<string> => {
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(), info: ENCODER.encode(info) },
+      masterKey,
+      256,
+    );
+
+    return toBase64(new Uint8Array(bits));
+  };
+
+  return {
+    kek: await derive('eveil-enc-v1'),
+    authKey: await derive('eveil-auth-v1'),
+  };
+}
+
+export async function submitPassphrase(
+  passphrase: string,
+  mode: 'register' | 'unlock',
+): Promise<void> {
+  if (!passphrase.trim()) {
+    throw new RegistrationError('패스프레이즈를 입력해 주세요.');
+  }
+
+  const stored = await getLocalData();
+
+  if (mode === 'unlock') {
+    if (!stored.salt || !stored.isRegistered) {
+      throw new RegistrationError('등록 정보를 찾을 수 없습니다.');
+    }
+
+    const { kek, authKey } = await deriveKeys(passphrase, stored.salt);
+    await chrome.storage.session.set({
+      [KEK_SESSION_KEY]: kek,
+      [AUTH_SESSION_KEY]: authKey,
+    });
+    return;
+  }
+
+  const clientId = stored.clientId ?? crypto.randomUUID();
+  const salt = stored.salt ?? toBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const data: RegistrationData = {
+    clientId,
+    salt,
+    isRegistered: false,
+  };
+  await chrome.storage.local.set({ [LOCAL_KEY]: data });
+
+  const { kek, authKey } = await deriveKeys(passphrase, salt);
+  await chrome.storage.session.set({
+    [KEK_SESSION_KEY]: kek,
+    [AUTH_SESSION_KEY]: authKey,
+  });
+  await registerClient({ clientId, authKey, kek });
+  await chrome.storage.local.set({ [LOCAL_KEY]: { ...data, isRegistered: true } });
+}

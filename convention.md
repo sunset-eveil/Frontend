@@ -21,8 +21,9 @@
 - 읽기 전용 상수: `UPPER_SNAKE_CASE`
 - Enum: `PascalCase`
 - 파일명: `kebab-case`
+- React 및 Emotion 컴포넌트: `PascalCase` (파일명은 `kebab-case`)
 
-Boolean 변수는 상태나 가능 여부가 드러나도록 `is`, `has`, `can`, `should` 접두사를 사용합니다.
+Boolean 변수와 props는 상태나 가능 여부가 드러나도록 `is`, `has`, `can`, `should` 접두사를 사용합니다.
 
 ### Type
 
