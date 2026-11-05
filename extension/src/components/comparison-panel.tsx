@@ -32,6 +32,7 @@ type ComparisonPanelProps = {
     mask: Omit<ManualMask, "id" | "label" | "maskCode">,
   ) => void;
   onRemoveManualMask: (id: string) => void;
+  onCancelSelection: (selection: { text: string; start: number; end: number }) => void;
   onSend?: () => void;
 };
 type ContentColumnProps = {
@@ -287,6 +288,7 @@ export function ComparisonPanel({
   onCollapse,
   onAddManualMask,
   onRemoveManualMask,
+  onCancelSelection,
   onSend,
 }: ComparisonPanelProps): ReactNode {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -373,6 +375,11 @@ export function ComparisonPanel({
     window.getSelection()?.removeAllRanges();
   };
 
+  const cancelSelection = (): void => {
+    if (selection) onCancelSelection(selection);
+    closeSelection();
+  };
+
   const handlePointerDown = (event: PointerEvent): void => {
     const target = event.target as Element;
 
@@ -405,7 +412,7 @@ export function ComparisonPanel({
         event.preventDefault();
 
         if (selection) {
-          closeSelection();
+          cancelSelection();
         } else {
           onClose();
         }
@@ -468,7 +475,7 @@ export function ComparisonPanel({
                       position={selection.position}
                       onTypeChange={setSelectedType}
                       onRememberChange={setRemember}
-                      onCancel={closeSelection}
+                      onCancel={cancelSelection}
                       onMask={addManualMask}
                     />
                   )}
