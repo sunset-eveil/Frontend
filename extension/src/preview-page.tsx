@@ -1,4 +1,4 @@
-import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage } from './embedded-panel';
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage, syncEmbeddedDraft } from './embedded-panel';
 import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -93,6 +93,28 @@ export function PreviewPage(): ReactNode {
   const [value, setValue] = useState("");
   const latestValue = useRef(value);
   latestValue.current = value;
+  useEffect(() => syncEmbeddedDraft(value), [value]);
+  useEffect(() => {
+    if (!IS_EMBEDDED) return;
+    const parentOrigin = new URLSearchParams(location.search).get('parentOrigin');
+    const handleParentMessage = (event: MessageEvent<unknown>): void => {
+      if (event.source !== window.parent || event.origin !== parentOrigin) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object' || !('type' in data)) return;
+      if (data.type === 'eveil:draft-transferred') {
+        setValue('');
+        setManualMasks([]);
+        setMaskedValue(null);
+        setMappingResult(undefined);
+      }
+      if (data.type === 'eveil:close-error' && 'message' in data &&
+        typeof data.message === 'string') {
+        setSendStatus({ message: data.message, isError: true });
+      }
+    };
+    window.addEventListener('message', handleParentMessage);
+    return () => window.removeEventListener('message', handleParentMessage);
+  }, []);
   const [caret, setCaret] = useState<TextCaret>({ start: 0, end: 0 });
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
@@ -594,7 +616,7 @@ export function PreviewPage(): ReactNode {
       setManualMasks([]);
       setView('original');
       setSendStatus(null);
-      closeEmbeddedPanel();
+      closeEmbeddedPanel(true);
     } catch (error) {
       setSendStatus({
         message: error instanceof Error ? error.message : 'ChatGPT로 전송하지 못했습니다.',
