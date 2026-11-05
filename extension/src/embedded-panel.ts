@@ -13,13 +13,22 @@ export function notifyEmbeddedMode(mode: 'chat' | 'comparison'): void {
 
 export function closeEmbeddedPanel(isSent = false): void {
   if (IS_EMBEDDED && parentOrigin) {
-    window.parent.postMessage({ type: 'eveil:close', isSent }, parentOrigin);
+    window.parent.postMessage({
+      type: isSent ? 'eveil:close' : 'eveil:close-request',
+      isSent,
+    }, parentOrigin);
   }
 }
 
 export function syncEmbeddedDraft(text: string): void {
   if (IS_EMBEDDED && parentOrigin) {
     window.parent.postMessage({ type: 'eveil:draft', text }, parentOrigin);
+  }
+}
+
+export function requestComposerValue(): void {
+  if (IS_EMBEDDED && parentOrigin) {
+    window.parent.postMessage({ type: 'eveil:ready' }, parentOrigin);
   }
 }
 

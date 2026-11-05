@@ -20,7 +20,9 @@
   let isOpen = false;
   let isExpanded = false;
   let draft = '';
-  let lastInsertedText = '';
+  let frameReady = false;
+  let pendingCloseRequestId: string | undefined;
+  let pendingCloseTimeout: number | undefined;
   let hintDismissed = true;
   let frameHeight = 440;
   let pendingLayout: number | undefined;
@@ -127,22 +129,78 @@
     return location.pathname.match(/\/c\/([0-9a-f-]{36})(?:\/|$)/i)?.[1] ?? null;
   }
 
+  function getComposerEditor(): HTMLElement | undefined {
+    return Array.from(document.querySelectorAll<HTMLElement>(
+      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder], textarea[placeholder*="메시지"], textarea[placeholder*="Message"]',
+    )).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+  }
+
+  function getComposerContainer(editor: HTMLElement): HTMLElement | null {
+    return editor.closest<HTMLElement>('form') ?? editor.closest<HTMLElement>(
+      '[data-type="unified-composer"], #composer-background, [data-testid="composer"]',
+    ) ?? editor.parentElement?.parentElement ?? null;
+  }
+
+  function nextFrame(): Promise<void> {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  function readComposerText(editor: HTMLElement): string {
+    const text = editor instanceof HTMLTextAreaElement ? editor.value : editor.innerText;
+    return text.replace(/\r\n/g, '\n').replace(/\n$/, '');
+  }
+
+  async function getComposerEditorWithRetry(): Promise<HTMLElement> {
+    let editor = getComposerEditor();
+    if (!editor?.isConnected) {
+      await nextFrame();
+      editor = getComposerEditor();
+    }
+    if (!editor?.isConnected) throw new Error('ChatGPT 입력창을 찾을 수 없습니다.');
+    return editor;
+  }
+
+  async function sendComposerValue(): Promise<void> {
+    const targetFrame = frame;
+    if (!targetFrame?.contentWindow) return;
+    try {
+      const editor = await getComposerEditorWithRetry();
+      if (!isOpen || frame !== targetFrame) return;
+      targetFrame.contentWindow?.postMessage({
+        type: 'eveil:composer-value',
+        text: readComposerText(editor),
+      }, EXTENSION_ORIGIN);
+    } catch (error) {
+      targetFrame.contentWindow?.postMessage({
+        type: 'eveil:composer-error',
+        message: error instanceof Error ? error.message : 'ChatGPT 입력값을 읽지 못했습니다.',
+      }, EXTENSION_ORIGIN);
+    }
+  }
+
   function setOpen(nextOpen: boolean, shouldTransferDraft = true): void {
     if (!hasContext() || !control.isConnected) return;
-    if (!nextOpen && isOpen && draft && shouldTransferDraft) {
-      try {
-        insertComposerText(draft, lastInsertedText);
+    if (!nextOpen && isOpen && shouldTransferDraft) {
+      void insertComposerText(draft).then(() => {
         draft = '';
-        lastInsertedText = '';
         frame?.contentWindow?.postMessage({ type: 'eveil:draft-transferred' }, EXTENSION_ORIGIN);
-      } catch (error) {
+        applyOpenState(false);
+      }).catch((error: unknown) => {
         frame?.contentWindow?.postMessage({
           type: 'eveil:close-error',
           message: error instanceof Error ? error.message : '원문을 옮기지 못했습니다.',
         }, EXTENSION_ORIGIN);
-        return;
-      }
+        applyOpenState(false);
+      });
+      return;
     }
+    applyOpenState(nextOpen);
+  }
+
+  function applyOpenState(nextOpen: boolean): void {
     isOpen = nextOpen;
     if (!isOpen) frame?.contentWindow?.postMessage({ type: 'eveil:panel-hidden' }, EXTENSION_ORIGIN);
     trigger.setAttribute('aria-expanded', String(isOpen));
@@ -154,8 +212,35 @@
       frame.src = `${extensionBaseUrl}index.html?embedded=1&parentOrigin=${encodeURIComponent(location.origin)}`;
       overlayShadow.append(frame);
     }
+    if (isOpen && frameReady) sendComposerValue();
     if (frame) frame.hidden = !isOpen;
     updatePosition();
+  }
+
+  function closeWithCurrentDraft(): void {
+    if (!isOpen) return;
+    if (!frameReady || !frame?.contentWindow) {
+      frame?.contentWindow?.postMessage({
+        type: 'eveil:close-error',
+        message: '입력값을 준비하는 중입니다. 잠시 후 다시 시도해 주세요.',
+      }, EXTENSION_ORIGIN);
+      return;
+    }
+
+    pendingCloseRequestId = crypto.randomUUID();
+    frame.contentWindow.postMessage({
+      type: 'eveil:get-draft',
+      requestId: pendingCloseRequestId,
+    }, EXTENSION_ORIGIN);
+    if (pendingCloseTimeout !== undefined) window.clearTimeout(pendingCloseTimeout);
+    pendingCloseTimeout = window.setTimeout(() => {
+      pendingCloseRequestId = undefined;
+      pendingCloseTimeout = undefined;
+      frame?.contentWindow?.postMessage({
+        type: 'eveil:close-error',
+        message: '최신 입력값을 확인하지 못해 확장을 닫지 않았습니다. 다시 시도해 주세요.',
+      }, EXTENSION_ORIGIN);
+    }, 500);
   }
 
   function dismissHint(): void {
@@ -165,16 +250,36 @@
     runExtensionTask(() => chrome.storage.local.set({ [HINT_KEY]: true }));
   }
 
-  function updatePosition(): void {
+  function updatePosition(allowRetry = true): void {
     if (!hasContext()) return;
-    if (!control.isConnected || !composer?.isConnected) {
+    if (!control.isConnected) {
       hint.hidden = true;
       backdrop.hidden = true;
       composerCover.hidden = true;
       if (frame) frame.hidden = true;
       return;
     }
+    if (!composer?.isConnected) {
+      const editor = getComposerEditor();
+      composer = editor ? getComposerContainer(editor) : null;
+      if (!composer?.isConnected) {
+        hint.hidden = true;
+        backdrop.hidden = true;
+        composerCover.hidden = true;
+        if (frame) frame.hidden = true;
+        if (allowRetry) requestAnimationFrame(() => updatePosition(false));
+        return;
+      }
+    }
     const bounds = composer.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) {
+      hint.hidden = true;
+      backdrop.hidden = true;
+      composerCover.hidden = true;
+      if (frame) frame.hidden = true;
+      if (allowRetry) requestAnimationFrame(() => updatePosition(false));
+      return;
+    }
     const visible = (element: HTMLElement): boolean => {
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
@@ -226,19 +331,15 @@
     }
   }
 
-  function mountControl(): void {
+  function mountControl(allowRetry = true): void {
     if (!hasContext()) return;
     document.querySelectorAll(`#${CONTROL_ID}`).forEach((element) => {
       if (element !== control) element.remove();
     });
-    const editor = document.querySelector<HTMLElement>(
-      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder], textarea[placeholder*="메시지"], textarea[placeholder*="Message"]',
-    );
-    composer = editor?.closest<HTMLElement>('form') ?? editor?.closest<HTMLElement>(
-      '[data-type="unified-composer"], #composer-background, [data-testid="composer"]',
-    ) ?? editor?.parentElement?.parentElement ?? null;
+    const editor = getComposerEditor();
+    composer = editor ? getComposerContainer(editor) : null;
     if (!editor || !composer) {
-      updatePosition();
+      if (allowRetry) requestAnimationFrame(() => mountControl(false));
       return;
     }
     // Keep the button outside ChatGPT's clipped action wrappers. Those wrappers
@@ -248,20 +349,11 @@
     updatePosition();
   }
 
-  function insertComposerText(text: string, replaceText = ''): HTMLElement {
-    const editor = Array.from(document.querySelectorAll<HTMLElement>(
-      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder]',
-    )).find((candidate) => {
-      const bounds = candidate.getBoundingClientRect();
-      return bounds.width > 0 && bounds.height > 0;
-    });
-    if (!editor) throw new Error('ChatGPT 입력창을 찾을 수 없습니다.');
+  async function insertComposerText(text: string): Promise<HTMLElement> {
+    const editor = await getComposerEditorWithRetry();
 
-    const currentText = editor instanceof HTMLTextAreaElement
-      ? editor.value : editor.innerText;
-    if (currentText.trim() && currentText !== replaceText) {
-      throw new Error('ChatGPT 입력창에 작성 중인 내용을 먼저 비워 주세요.');
-    }
+    const currentText = readComposerText(editor);
+    if (currentText === text) return editor;
 
     editor.focus();
     if (editor instanceof HTMLTextAreaElement) {
@@ -276,23 +368,25 @@
         selection?.removeAllRanges();
         selection?.addRange(range);
       }
-      document.execCommand('insertText', false, text);
+      document.execCommand(text ? 'insertText' : 'delete', false, text);
     } else {
       throw new Error('ChatGPT 입력창에 내용을 입력할 수 없습니다.');
     }
 
-    const insertedText = editor instanceof HTMLTextAreaElement
-      ? editor.value : editor.innerText;
-    if (insertedText.replace(/\r\n/g, '\n') !== text) {
-      throw new Error('ChatGPT 입력창에 내용을 넣지 못했습니다.');
+    const expectedText = text.replace(/\r\n/g, '\n').replace(/\n$/, '');
+    if (editor.isConnected && readComposerText(editor) === expectedText) return editor;
+
+    await nextFrame();
+    const currentEditor = getComposerEditor();
+    if (currentEditor?.isConnected && readComposerText(currentEditor) === expectedText) {
+      return currentEditor;
     }
-    return editor;
+    throw new Error('ChatGPT 입력창에 내용을 넣지 못했습니다.');
   }
 
   async function submitMaskedText(text: string): Promise<void> {
     if (!text.trim()) throw new Error('전송할 내용이 없습니다.');
-    const editor = insertComposerText(text, lastInsertedText);
-    lastInsertedText = text;
+    const editor = await insertComposerText(text);
     const form = editor.closest('form');
     if (!form) throw new Error('ChatGPT 입력창의 전송 양식을 찾을 수 없습니다.');
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -304,13 +398,10 @@
     for (let attempt = 0; attempt < 60; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 50));
       if (!editor.isConnected && location.href !== initialUrl) {
-        lastInsertedText = '';
         return;
       }
-      const remaining = editor instanceof HTMLTextAreaElement
-        ? editor.value : editor.innerText;
+      const remaining = readComposerText(editor);
       if (!remaining.trim()) {
-        lastInsertedText = '';
         return;
       }
     }
@@ -319,7 +410,10 @@
 
   function notifyConversationChange(): void {
     if (location.href === lastUrl) return;
-    if (lastUrl) setOpen(false);
+    if (lastUrl) {
+      setOpen(false, false);
+      draft = '';
+    }
     lastUrl = location.href;
     runExtensionTask(() => chrome.runtime.sendMessage({
       type: 'eveil:conversation-change',
@@ -341,19 +435,36 @@
     dismissHint();
     setOpen(!isOpen, false);
   }, eventOptions);
-  backdrop.addEventListener('click', () => setOpen(false), eventOptions);
+  backdrop.addEventListener('click', closeWithCurrentDraft, eventOptions);
   hint.querySelector('button')!.addEventListener('click', dismissHint, eventOptions);
   document.addEventListener('pointerdown', (event) => {
     const path = event.composedPath();
-    if (isOpen && !path.includes(control) && !path.includes(overlay)) setOpen(false);
+    if (isOpen && !path.includes(control) && !path.includes(overlay)) closeWithCurrentDraft();
   }, eventOptions);
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen) { setOpen(false); trigger.focus(); }
+    if (event.key === 'Escape' && isOpen) closeWithCurrentDraft();
   }, eventOptions);
   window.addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!frame || event.source !== frame.contentWindow || event.origin !== EXTENSION_ORIGIN) return;
     const data = event.data;
     if (!data || typeof data !== 'object' || !('type' in data)) return;
+    if (data.type === 'eveil:close-request') {
+      closeWithCurrentDraft();
+      return;
+    }
+    if (data.type === 'eveil:ready') {
+      frameReady = true;
+      if (isOpen) sendComposerValue();
+    }
+    if (data.type === 'eveil:draft-response' &&
+      'requestId' in data && data.requestId === pendingCloseRequestId &&
+      'text' in data && typeof data.text === 'string') {
+      if (pendingCloseTimeout !== undefined) window.clearTimeout(pendingCloseTimeout);
+      pendingCloseTimeout = undefined;
+      pendingCloseRequestId = undefined;
+      draft = data.text;
+      setOpen(false);
+    }
     if (data.type === 'eveil:draft' && 'text' in data && typeof data.text === 'string') {
       draft = data.text;
     }
@@ -372,11 +483,13 @@
       });
     }
     if (data.type === 'eveil:close') {
-      if ('isSent' in data && data.isSent === true) {
+      const isSent = 'isSent' in data && data.isSent === true;
+      if (isSent) {
         draft = '';
-        lastInsertedText = '';
+      } else if ('text' in data && typeof data.text === 'string') {
+        draft = data.text;
       }
-      setOpen(false);
+      setOpen(false, !isSent);
       if (!isOpen) trigger.focus({ preventScroll: true });
     }
     if (data.type === 'eveil:mode' && 'mode' in data && (data.mode === 'chat' || data.mode === 'comparison')) {
@@ -414,8 +527,8 @@
   });
   window.addEventListener('popstate', scheduleLayout, eventOptions);
   window.addEventListener('hashchange', scheduleLayout, eventOptions);
-  window.addEventListener('resize', updatePosition, eventOptions);
-  window.addEventListener('scroll', updatePosition, { ...eventOptions, capture: true });
+  window.addEventListener('resize', () => updatePosition(), eventOptions);
+  window.addEventListener('scroll', () => updatePosition(), { ...eventOptions, capture: true });
   window.addEventListener('eveil:dispose-content', dispose, eventOptions);
   if (hasContext()) {
     pageObserver = new MutationObserver(scheduleLayout);

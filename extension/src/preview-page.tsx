@@ -1,4 +1,4 @@
-import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage, syncEmbeddedDraft } from './embedded-panel';
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, requestComposerValue, sendMaskedMessage, syncEmbeddedDraft } from './embedded-panel';
 import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -103,8 +103,32 @@ export function PreviewPage(): ReactNode {
       if (event.source !== window.parent || event.origin !== parentOrigin) return;
       const data = event.data;
       if (!data || typeof data !== 'object' || !('type' in data)) return;
+      if (data.type === 'eveil:get-draft' && 'requestId' in data &&
+        typeof data.requestId === 'string') {
+        window.parent.postMessage({
+          type: 'eveil:draft-response',
+          requestId: data.requestId,
+          text: latestValue.current,
+        }, parentOrigin);
+      }
+      if (data.type === 'eveil:composer-value' && 'text' in data &&
+        typeof data.text === 'string') {
+        latestValue.current = data.text;
+        setValue(data.text);
+        setCaret({ start: data.text.length, end: data.text.length });
+        setManualMasks([]);
+        setMaskedValue(null);
+        setMappingResult(undefined);
+        setView('original');
+        setSendStatus(null);
+      }
+      if (data.type === 'eveil:composer-error' && 'message' in data &&
+        typeof data.message === 'string') {
+        setSendStatus({ message: data.message, isError: true });
+      }
       if (data.type === 'eveil:panel-hidden') setFilterAnchor(null);
       if (data.type === 'eveil:draft-transferred') {
+        latestValue.current = '';
         setValue('');
         setManualMasks([]);
         setMaskedValue(null);
@@ -117,6 +141,9 @@ export function PreviewPage(): ReactNode {
     };
     window.addEventListener('message', handleParentMessage);
     return () => window.removeEventListener('message', handleParentMessage);
+  }, []);
+  useEffect(() => {
+    requestComposerValue();
   }, []);
   const [caret, setCaret] = useState<TextCaret>({ start: 0, end: 0 });
   const [view, setView] = useState<"original" | "masked">("original");
@@ -292,8 +319,8 @@ export function PreviewPage(): ReactNode {
     }
   };
 
-  const maskForPreview = async (): Promise<ChatMapping[] | undefined> => {
-    if (!value.trim()) {
+  const maskForPreview = async (text = value): Promise<ChatMapping[] | undefined> => {
+    if (!text.trim()) {
       setSendStatus({ message: "마스킹할 내용을 입력해 주세요.", isError: true });
       return undefined;
     }
@@ -302,12 +329,12 @@ export function PreviewPage(): ReactNode {
       if (!chatId) throw new Error('대화 ID를 확인할 수 없습니다.');
       await createMaskingMutation.mutateAsync({
         chatId,
-        text: value,
+        text,
         enabledTypes: MASK_DEFINITIONS.filter((_, index) => enabled[index]).map(
           (definition) => definition.id,
         ),
       });
-      setMaskedValue(value);
+      setMaskedValue(text);
       try {
         const mappings = await loadMappings(chatId);
         if (activeChatId.current !== chatId) return undefined;
@@ -447,6 +474,7 @@ export function PreviewPage(): ReactNode {
   const getMaskSegments = (
     isMasked: boolean,
     mappings: ChatMapping[] | undefined = activeMappings,
+    text = value,
   ): MaskSegment[] => {
     const automatic = MASK_DEFINITIONS.flatMap((definition, definitionIndex) =>
       enabled[definitionIndex]
@@ -457,7 +485,7 @@ export function PreviewPage(): ReactNode {
               ))
           .flatMap((mapping) => {
             const segments: MaskSegment[] = [];
-            let start = value.indexOf(mapping.value);
+            let start = text.indexOf(mapping.value);
 
             while (start >= 0) {
               segments.push({
@@ -466,7 +494,7 @@ export function PreviewPage(): ReactNode {
                 definition,
                 mapping: mappings ? mapping as ChatMapping : undefined,
               });
-              start = value.indexOf(mapping.value, start + mapping.value.length);
+              start = text.indexOf(mapping.value, start + mapping.value.length);
             }
 
             return segments;
@@ -482,11 +510,11 @@ export function PreviewPage(): ReactNode {
           if (!definition || !mapping.maskCode) return [];
 
           const segments: MaskSegment[] = [];
-          let start = value.indexOf(mapping.maskCode);
+          let start = text.indexOf(mapping.maskCode);
 
           while (start >= 0) {
-            const before = value[start - 1] ?? '';
-            const after = value[start + mapping.maskCode.length] ?? '';
+            const before = text[start - 1] ?? '';
+            const after = text[start + mapping.maskCode.length] ?? '';
 
             if (!/[A-Za-z0-9]/.test(before) && !/[A-Za-z0-9]/.test(after)) {
               segments.push({
@@ -497,7 +525,7 @@ export function PreviewPage(): ReactNode {
                 isRevealed: !enabled[MASK_DEFINITIONS.indexOf(definition)],
               });
             }
-            start = value.indexOf(mapping.maskCode, start + mapping.maskCode.length);
+            start = text.indexOf(mapping.maskCode, start + mapping.maskCode.length);
           }
 
           return segments;
@@ -568,14 +596,14 @@ export function PreviewPage(): ReactNode {
     return result;
   };
 
-  const toMaskedText = (mappings: ChatMapping[]): string => {
-    const segments = getMaskSegments(true, mappings);
+  const toMaskedText = (mappings: ChatMapping[], text = value): string => {
+    const segments = getMaskSegments(true, mappings, text);
     let maskedText = '';
     let cursor = 0;
 
     for (const segment of segments) {
-      maskedText += value.slice(cursor, segment.start);
-      const original = value.slice(segment.start, segment.end);
+      maskedText += text.slice(cursor, segment.start);
+      const original = text.slice(segment.start, segment.end);
       const replacement = segment.isRevealed
         ? segment.mapping?.value ?? original
         : segment.manual?.maskCode ?? segment.mapping?.maskCode;
@@ -584,12 +612,14 @@ export function PreviewPage(): ReactNode {
       cursor = segment.end;
     }
 
-    return maskedText + value.slice(cursor);
+    return maskedText + text.slice(cursor);
   };
 
   const handleInputChange = (nextValue: string): void => {
     if (nextValue === value) return;
+    latestValue.current = nextValue;
     setValue(nextValue);
+    syncEmbeddedDraft(nextValue);
     setManualMasks([]);
     setMaskedValue(null);
     setMappingResult(undefined);
@@ -599,20 +629,20 @@ export function PreviewPage(): ReactNode {
     if (sendInProgress.current || isSending) return;
     sendInProgress.current = true;
     setPosting(true);
-    const sourceText = value;
+    const sourceText = latestValue.current;
     const sourceChatId = chatId;
     const sourceEnabled = enabled;
     const sourceManualMasks = manualMasks;
 
     try {
-      const mappings = await maskForPreview();
+      const mappings = await maskForPreview(sourceText);
       if (!mappings) return;
       if (activeChatId.current !== sourceChatId || latestValue.current !== sourceText ||
         latestEnabled.current !== sourceEnabled || latestManualMasks.current !== sourceManualMasks) {
         throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
       }
 
-      await sendMaskedMessage(toMaskedText(mappings));
+      await sendMaskedMessage(toMaskedText(mappings, sourceText));
       setValue('');
       setCaret({ start: 0, end: 0 });
       setMaskedValue(null);
