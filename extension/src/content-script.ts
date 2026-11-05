@@ -144,6 +144,7 @@
       }
     }
     isOpen = nextOpen;
+    if (!isOpen) frame?.contentWindow?.postMessage({ type: 'eveil:panel-hidden' }, EXTENSION_ORIGIN);
     trigger.setAttribute('aria-expanded', String(isOpen));
     control.style.setProperty('display', isOpen ? 'none' : 'inline-flex', 'important');
     backdrop.hidden = !isOpen || !isExpanded;

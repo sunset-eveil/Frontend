@@ -8,6 +8,7 @@ import { ComparisonPanel } from "./components/comparison-panel";
 import { EveilButton } from "./components/eveil-button";
 import { InputPanel } from "./components/input-panel";
 import { MaskTypeItem } from "./components/mask-type-item";
+import { MaskTypeModal } from "./components/mask-type-modal";
 import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
 import {
   MASK_DEFINITIONS,
@@ -87,6 +88,7 @@ export function PreviewPage(): ReactNode {
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
+  const [filterAnchor, setFilterAnchor] = useState<DOMRect | null>(null);
   const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
@@ -101,6 +103,7 @@ export function PreviewPage(): ReactNode {
       if (event.source !== window.parent || event.origin !== parentOrigin) return;
       const data = event.data;
       if (!data || typeof data !== 'object' || !('type' in data)) return;
+      if (data.type === 'eveil:panel-hidden') setFilterAnchor(null);
       if (data.type === 'eveil:draft-transferred') {
         setValue('');
         setManualMasks([]);
@@ -340,6 +343,7 @@ export function PreviewPage(): ReactNode {
   };
 
   const openComparison = (): void => {
+    setFilterAnchor(null);
     setScreen('comparison');
     if (value.trim() && !isSending) void maskForPreview();
   };
@@ -615,6 +619,7 @@ export function PreviewPage(): ReactNode {
       setMappingResult(undefined);
       setManualMasks([]);
       setView('original');
+      setFilterAnchor(null);
       setSendStatus(null);
       closeEmbeddedPanel(true);
     } catch (error) {
@@ -653,9 +658,13 @@ export function PreviewPage(): ReactNode {
               count={count}
               caret={caret}
               onCaretChange={setCaret}
-              onClose={() => IS_EMBEDDED ? closeEmbeddedPanel() : setScreen("button")}
+              onClose={() => {
+                setFilterAnchor(null);
+                if (IS_EMBEDDED) closeEmbeddedPanel();
+                else setScreen('button');
+              }}
               onExpand={openComparison}
-              onSettings={openComparison}
+              onSettings={setFilterAnchor}
               onSend={sendToChatGpt}
               isSending={isSending}
             />
@@ -668,6 +677,16 @@ export function PreviewPage(): ReactNode {
               {sendStatus.message}
             </SendStatus>
           )}
+      {screen === "chat" && filterAnchor && (
+        <MaskTypeModal
+          anchor={filterAnchor}
+          options={MASK_DEFINITIONS}
+          enabled={enabled}
+          counts={MASK_DEFINITIONS.map(countMatches)}
+          onChange={(index, isChecked) => { void changeMaskType(index, isChecked); }}
+          onClose={() => setFilterAnchor(null)}
+        />
+      )}
       {screen === "comparison" && (
         <ComparisonPanel
           original={content(false)}

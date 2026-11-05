@@ -25,7 +25,7 @@ type InputPanelProps = {
   onCaretChange: (caret: { start: number; end: number }) => void;
   onClose: () => void;
   onExpand: () => void;
-  onSettings: () => void;
+  onSettings: (anchor: DOMRect) => void;
   onSend?: () => void;
   isSending?: boolean;
 };
@@ -240,7 +240,7 @@ export function InputPanel({
         <IconButton
           icon="settings"
           label="가릴 정보 유형 설정"
-          onClick={onSettings}
+          onClick={(event) => onSettings(event.currentTarget.getBoundingClientRect())}
         />
         <IconButton icon="expand" label="비교 화면 열기" onClick={onExpand} />
         <SendButton
