@@ -11,8 +11,16 @@ export function notifyEmbeddedMode(mode: 'chat' | 'comparison'): void {
   }
 }
 
-export function closeEmbeddedPanel(): void {
-  if (IS_EMBEDDED && parentOrigin) window.parent.postMessage({ type: 'eveil:close' }, parentOrigin);
+export function closeEmbeddedPanel(isSent = false): void {
+  if (IS_EMBEDDED && parentOrigin) {
+    window.parent.postMessage({ type: 'eveil:close', isSent }, parentOrigin);
+  }
+}
+
+export function syncEmbeddedDraft(text: string): void {
+  if (IS_EMBEDDED && parentOrigin) {
+    window.parent.postMessage({ type: 'eveil:draft', text }, parentOrigin);
+  }
 }
 
 export function sendMaskedMessage(text: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage } from './embedded-panel';
+import { IS_EMBEDDED, closeEmbeddedPanel, notifyEmbeddedMode, sendMaskedMessage, syncEmbeddedDraft } from './embedded-panel';
 import { getMaskingTypeCode } from './api/maskings';
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { ComparisonPanel } from "./components/comparison-panel";
 import { EveilButton } from "./components/eveil-button";
 import { InputPanel } from "./components/input-panel";
 import { MaskTypeItem } from "./components/mask-type-item";
+import { MaskTypeModal } from "./components/mask-type-modal";
 import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
 import {
   MASK_DEFINITIONS,
@@ -87,12 +88,36 @@ export function PreviewPage(): ReactNode {
   const activeChatId = useRef<string | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
+  const [filterAnchor, setFilterAnchor] = useState<DOMRect | null>(null);
   const [isHintVisible, setShowHint] = useState(
     () => localStorage.getItem("eveil-hint-shown") !== "true",
   );
   const [value, setValue] = useState("");
   const latestValue = useRef(value);
   latestValue.current = value;
+  useEffect(() => syncEmbeddedDraft(value), [value]);
+  useEffect(() => {
+    if (!IS_EMBEDDED) return;
+    const parentOrigin = new URLSearchParams(location.search).get('parentOrigin');
+    const handleParentMessage = (event: MessageEvent<unknown>): void => {
+      if (event.source !== window.parent || event.origin !== parentOrigin) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object' || !('type' in data)) return;
+      if (data.type === 'eveil:panel-hidden') setFilterAnchor(null);
+      if (data.type === 'eveil:draft-transferred') {
+        setValue('');
+        setManualMasks([]);
+        setMaskedValue(null);
+        setMappingResult(undefined);
+      }
+      if (data.type === 'eveil:close-error' && 'message' in data &&
+        typeof data.message === 'string') {
+        setSendStatus({ message: data.message, isError: true });
+      }
+    };
+    window.addEventListener('message', handleParentMessage);
+    return () => window.removeEventListener('message', handleParentMessage);
+  }, []);
   const [caret, setCaret] = useState<TextCaret>({ start: 0, end: 0 });
   const [view, setView] = useState<"original" | "masked">("original");
   const [enabled, setEnabled] = useState(MASK_DEFINITIONS.map(() => true));
@@ -318,6 +343,7 @@ export function PreviewPage(): ReactNode {
   };
 
   const openComparison = (): void => {
+    setFilterAnchor(null);
     setScreen('comparison');
     if (value.trim() && !isSending) void maskForPreview();
   };
@@ -593,8 +619,9 @@ export function PreviewPage(): ReactNode {
       setMappingResult(undefined);
       setManualMasks([]);
       setView('original');
+      setFilterAnchor(null);
       setSendStatus(null);
-      closeEmbeddedPanel();
+      closeEmbeddedPanel(true);
     } catch (error) {
       setSendStatus({
         message: error instanceof Error ? error.message : 'ChatGPT로 전송하지 못했습니다.',
@@ -631,9 +658,13 @@ export function PreviewPage(): ReactNode {
               count={count}
               caret={caret}
               onCaretChange={setCaret}
-              onClose={() => IS_EMBEDDED ? closeEmbeddedPanel() : setScreen("button")}
+              onClose={() => {
+                setFilterAnchor(null);
+                if (IS_EMBEDDED) closeEmbeddedPanel();
+                else setScreen('button');
+              }}
               onExpand={openComparison}
-              onSettings={openComparison}
+              onSettings={setFilterAnchor}
               onSend={sendToChatGpt}
               isSending={isSending}
             />
@@ -646,6 +677,16 @@ export function PreviewPage(): ReactNode {
               {sendStatus.message}
             </SendStatus>
           )}
+      {screen === "chat" && filterAnchor && (
+        <MaskTypeModal
+          anchor={filterAnchor}
+          options={MASK_DEFINITIONS}
+          enabled={enabled}
+          counts={MASK_DEFINITIONS.map(countMatches)}
+          onChange={(index, isChecked) => { void changeMaskType(index, isChecked); }}
+          onClose={() => setFilterAnchor(null)}
+        />
+      )}
       {screen === "comparison" && (
         <ComparisonPanel
           original={content(false)}

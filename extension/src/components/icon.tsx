@@ -22,6 +22,7 @@ const VARIANTS = {
   id: 130,
   card: 131,
   pin: 132,
+  coins: 133,
   userChip: 134,
   phoneChip: 46,
   emailChip: 135,

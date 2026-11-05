@@ -19,6 +19,8 @@
   let composer: HTMLElement | null = null;
   let isOpen = false;
   let isExpanded = false;
+  let draft = '';
+  let lastInsertedText = '';
   let hintDismissed = true;
   let frameHeight = 440;
   let pendingLayout: number | undefined;
@@ -54,6 +56,7 @@
       [hidden] { display: none !important; }
       .backdrop { position: absolute; inset: 0; background: rgba(8, 9, 18, .78);
         backdrop-filter: blur(2px); pointer-events: auto; }
+      .composer-cover { position: absolute; background: #212121; pointer-events: auto; }
       iframe { position: absolute; z-index: 1; display: block; border: 0; border-radius: 20px; background: transparent;
         pointer-events: auto; color-scheme: dark; }
       .hint { position: absolute; box-sizing: border-box; width: 262px; padding: 13px 14px;
@@ -67,6 +70,7 @@
         border-right: 1px solid #9184d9; border-bottom: 1px solid #9184d9; background: #242432; transform: rotate(45deg); }
     </style>
     <div class="backdrop" hidden aria-hidden="true"></div>
+    <div class="composer-cover" hidden aria-hidden="true"></div>
     <section class="hint" role="region" aria-label="Eveil 사용 안내" hidden>
       <strong>Eveil이 여기 있어요</strong>
       <p>눌러서 보낼 내용을 입력하면 개인정보를 가려서 보내 드려요.</p>
@@ -75,6 +79,7 @@
   `;
   const hint = overlayShadow.querySelector<HTMLElement>('.hint')!;
   const backdrop = overlayShadow.querySelector<HTMLElement>('.backdrop')!;
+  const composerCover = overlayShadow.querySelector<HTMLElement>('.composer-cover')!;
 
   function dispose(): void {
     if (isDisposed) return;
@@ -122,10 +127,26 @@
     return location.pathname.match(/\/c\/([0-9a-f-]{36})(?:\/|$)/i)?.[1] ?? null;
   }
 
-  function setOpen(nextOpen: boolean): void {
+  function setOpen(nextOpen: boolean, shouldTransferDraft = true): void {
     if (!hasContext() || !control.isConnected) return;
+    if (!nextOpen && isOpen && draft && shouldTransferDraft) {
+      try {
+        insertComposerText(draft, lastInsertedText);
+        draft = '';
+        lastInsertedText = '';
+        frame?.contentWindow?.postMessage({ type: 'eveil:draft-transferred' }, EXTENSION_ORIGIN);
+      } catch (error) {
+        frame?.contentWindow?.postMessage({
+          type: 'eveil:close-error',
+          message: error instanceof Error ? error.message : '원문을 옮기지 못했습니다.',
+        }, EXTENSION_ORIGIN);
+        return;
+      }
+    }
     isOpen = nextOpen;
+    if (!isOpen) frame?.contentWindow?.postMessage({ type: 'eveil:panel-hidden' }, EXTENSION_ORIGIN);
     trigger.setAttribute('aria-expanded', String(isOpen));
+    control.style.setProperty('display', isOpen ? 'none' : 'inline-flex', 'important');
     backdrop.hidden = !isOpen || !isExpanded;
     if (isOpen && !frame) {
       frame = document.createElement('iframe');
@@ -149,6 +170,7 @@
     if (!control.isConnected || !composer?.isConnected) {
       hint.hidden = true;
       backdrop.hidden = true;
+      composerCover.hidden = true;
       if (frame) frame.hidden = true;
       return;
     }
@@ -167,8 +189,8 @@
       '#composer-submit-button, [data-testid="send-button"], [data-testid="composer-speech-button"]',
     )).find(visible);
     const target = action?.getBoundingClientRect();
-    const x = target ? target.left - 110 : bounds.right - 264;
-    const y = target ? target.top + (target.height - 36) / 2 : bounds.bottom - 46;
+    const x = target ? target.left - 82 : bounds.right - 264;
+    const y = bounds.top + (bounds.height - 36) / 2;
     // all:initial!important isolates the host from page CSS; coordinates must
     // have the same priority or that reset wins and the button becomes static.
     control.style.setProperty('position', 'fixed', 'important');
@@ -182,14 +204,17 @@
     // The fixed comparison dialog is outside #root's layout. Its viewport must
     // not shrink to the compact root height reported by ResizeObserver.
     const height = isExpanded ? window.innerHeight
-      : Math.min(frameHeight, Math.max(120, window.innerHeight - 24));
+      : Math.min(Math.max(frameHeight, bounds.height + 32), Math.max(120, window.innerHeight - 24));
     const left = isExpanded
       ? 0
-      : Math.max(12, Math.min(bounds.right - width, window.innerWidth - width - 12));
-    const above = anchor.top - height - 12;
+      : Math.max(12, Math.min(bounds.left + (bounds.width - width) / 2, window.innerWidth - width - 12));
     const top = isExpanded
       ? 0
-      : (above >= 12 ? above : Math.max(12, Math.min(anchor.bottom + 12, window.innerHeight - height - 12)));
+      : Math.max(12, Math.min(bounds.bottom + 16 - height, window.innerHeight - height - 12));
+    composerCover.hidden = !isOpen || isExpanded;
+    if (!composerCover.hidden) {
+      composerCover.style.cssText = `left:${bounds.left}px;top:${bounds.top}px;width:${bounds.width}px;height:${bounds.height}px;`;
+    }
     if (frame) {
       frame.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;`;
       frame.hidden = !isOpen;
@@ -223,18 +248,18 @@
     updatePosition();
   }
 
-  async function submitMaskedText(text: string): Promise<void> {
+  function insertComposerText(text: string, replaceText = ''): HTMLElement {
     const editor = Array.from(document.querySelectorAll<HTMLElement>(
       '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder]',
     )).find((candidate) => {
       const bounds = candidate.getBoundingClientRect();
       return bounds.width > 0 && bounds.height > 0;
     });
-    if (!editor || !text.trim()) throw new Error('ChatGPT 입력창을 찾을 수 없습니다.');
+    if (!editor) throw new Error('ChatGPT 입력창을 찾을 수 없습니다.');
 
     const currentText = editor instanceof HTMLTextAreaElement
       ? editor.value : editor.innerText;
-    if (currentText.trim()) {
+    if (currentText.trim() && currentText !== replaceText) {
       throw new Error('ChatGPT 입력창에 작성 중인 내용을 먼저 비워 주세요.');
     }
 
@@ -244,6 +269,13 @@
       setter?.call(editor, text);
       editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
     } else if (editor.isContentEditable) {
+      if (currentText) {
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
       document.execCommand('insertText', false, text);
     } else {
       throw new Error('ChatGPT 입력창에 내용을 입력할 수 없습니다.');
@@ -251,30 +283,36 @@
 
     const insertedText = editor instanceof HTMLTextAreaElement
       ? editor.value : editor.innerText;
-    if (insertedText.replace(/\r\n/g, '\n').trim() !== text.trim()) {
-      throw new Error('ChatGPT 입력창에 가린 내용을 넣지 못했습니다.');
+    if (insertedText.replace(/\r\n/g, '\n') !== text) {
+      throw new Error('ChatGPT 입력창에 내용을 넣지 못했습니다.');
     }
+    return editor;
+  }
 
-    const form = editor.closest('form') ?? document;
-    let submit: HTMLButtonElement | null = null;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      submit = form.querySelector<HTMLButtonElement>(
-        '#composer-submit-button, [data-testid="send-button"]',
-      );
-      if (submit && !submit.disabled && submit.getAttribute('aria-disabled') !== 'true') break;
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
-    }
-    if (!submit || submit.disabled || submit.getAttribute('aria-disabled') === 'true') {
-      throw new Error('ChatGPT 전송 버튼을 사용할 수 없습니다.');
+  async function submitMaskedText(text: string): Promise<void> {
+    if (!text.trim()) throw new Error('전송할 내용이 없습니다.');
+    const editor = insertComposerText(text, lastInsertedText);
+    lastInsertedText = text;
+    const form = editor.closest('form');
+    if (!form) throw new Error('ChatGPT 입력창의 전송 양식을 찾을 수 없습니다.');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (!editor.isConnected || !form.isConnected) {
+      throw new Error('ChatGPT 입력창이 변경됐습니다.');
     }
     const initialUrl = location.href;
-    submit.click();
+    form.requestSubmit();
     for (let attempt = 0; attempt < 60; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 50));
-      if (!editor.isConnected && location.href !== initialUrl) return;
+      if (!editor.isConnected && location.href !== initialUrl) {
+        lastInsertedText = '';
+        return;
+      }
       const remaining = editor instanceof HTMLTextAreaElement
         ? editor.value : editor.innerText;
-      if (!remaining.trim()) return;
+      if (!remaining.trim()) {
+        lastInsertedText = '';
+        return;
+      }
     }
     throw new Error('ChatGPT 입력창에 내용이 남아 있습니다. 전송 여부를 확인해 주세요.');
   }
@@ -301,7 +339,7 @@
 
   trigger.addEventListener('click', () => {
     dismissHint();
-    setOpen(!isOpen);
+    setOpen(!isOpen, false);
   }, eventOptions);
   backdrop.addEventListener('click', () => setOpen(false), eventOptions);
   hint.querySelector('button')!.addEventListener('click', dismissHint, eventOptions);
@@ -316,6 +354,9 @@
     if (!frame || event.source !== frame.contentWindow || event.origin !== EXTENSION_ORIGIN) return;
     const data = event.data;
     if (!data || typeof data !== 'object' || !('type' in data)) return;
+    if (data.type === 'eveil:draft' && 'text' in data && typeof data.text === 'string') {
+      draft = data.text;
+    }
     if (data.type === 'eveil:send-masked' && 'requestId' in data &&
       typeof data.requestId === 'string' && 'text' in data && typeof data.text === 'string') {
       const targetFrame = frame.contentWindow;
@@ -330,7 +371,14 @@
         }, EXTENSION_ORIGIN);
       });
     }
-    if (data.type === 'eveil:close') { setOpen(false); trigger.focus({ preventScroll: true }); }
+    if (data.type === 'eveil:close') {
+      if ('isSent' in data && data.isSent === true) {
+        draft = '';
+        lastInsertedText = '';
+      }
+      setOpen(false);
+      if (!isOpen) trigger.focus({ preventScroll: true });
+    }
     if (data.type === 'eveil:mode' && 'mode' in data && (data.mode === 'chat' || data.mode === 'comparison')) {
       isExpanded = data.mode === 'comparison';
       backdrop.hidden = !isOpen || !isExpanded;
@@ -353,7 +401,7 @@
     if (message?.type === 'eveil:toggle-composer') {
       mountControl();
       dismissHint();
-      setOpen(!isOpen);
+      setOpen(!isOpen, false);
       sendResponse({ mounted: control.isConnected });
     }
   }
