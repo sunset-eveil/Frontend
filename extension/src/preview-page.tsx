@@ -839,6 +839,7 @@ export function PreviewPage(): ReactNode {
       {screen === "comparison" && (
         <ComparisonPanel
           original={content(false)}
+          originalText={value}
           masked={content(true)}
           count={count}
           maskOptions={MASK_DEFINITIONS}
@@ -848,6 +849,7 @@ export function PreviewPage(): ReactNode {
           onClose={() => setScreen("chat")}
           onCollapse={() => setScreen("chat")}
           onAddManualMask={addManualMask}
+          onOriginalChange={handleInputChange}
           onRemoveManualMask={removeManualMask}
           onCancelSelection={cancelSelection}
           onSend={sendToChatGpt}

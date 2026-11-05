@@ -19,6 +19,7 @@ import { MaskStatus } from "./privacy-text";
 
 type ComparisonPanelProps = {
   original: ReactNode;
+  originalText: string;
   masked: ReactNode;
   types: ReactNode;
   count: number;
@@ -31,6 +32,7 @@ type ComparisonPanelProps = {
   onAddManualMask: (
     mask: Omit<ManualMask, "id" | "label" | "maskCode">,
   ) => void;
+  onOriginalChange: (value: string) => void;
   onRemoveManualMask: (id: string) => void;
   onCancelSelection: (selection: { text: string; start: number; end: number }) => void;
   onSend?: () => void;
@@ -227,6 +229,22 @@ const ColumnContent = styled.div<ContentColumnProps>`
   white-space: pre-wrap;
 `;
 
+const OriginalEditor = styled.textarea`
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  resize: none;
+  white-space: pre-wrap;
+`;
+
 const Footer = styled.footer`
   display: flex;
   flex-wrap: wrap;
@@ -266,17 +284,9 @@ const RequestMessage = styled.span<{ isError: boolean }>`
   font-size: 12px;
 `;
 
-function getTextOffset(container: HTMLElement, node: Node, offset: number): number {
-  const range = document.createRange();
-
-  range.selectNodeContents(container);
-  range.setEnd(node, offset);
-
-  return range.toString().length;
-}
-
 export function ComparisonPanel({
   original,
+  originalText,
   masked,
   types,
   count,
@@ -287,12 +297,13 @@ export function ComparisonPanel({
   onClose,
   onCollapse,
   onAddManualMask,
+  onOriginalChange,
   onRemoveManualMask,
   onCancelSelection,
   onSend,
 }: ComparisonPanelProps): ReactNode {
   const dialog = useRef<HTMLDialogElement>(null);
-  const originalContent = useRef<HTMLDivElement>(null);
+  const originalContent = useRef<HTMLTextAreaElement>(null);
   const [selection, setSelection] = useState<SelectionDraft>();
   const [selectedType, setSelectedType] = useState<MaskTypeId>("custom");
   const [shouldRemember, setRemember] = useState(true);
@@ -321,24 +332,19 @@ export function ComparisonPanel({
 
   const handleSelection = (): void => {
     const container = originalContent.current;
-    const selected = window.getSelection();
-
-    if (
-      !container ||
-      !selected ||
-      selected.rangeCount === 0 ||
-      selected.isCollapsed
-    ) {
+    if (!container || container.selectionStart === container.selectionEnd) {
       return;
     }
 
-    const range = selected.getRangeAt(0);
-
-    if (!container.contains(range.commonAncestorContainer)) {
+    if (document.activeElement !== container) {
       return;
     }
 
-    const rawText = range.toString();
+    const startOffset = container.selectionStart;
+    const endOffset = container.selectionEnd;
+    if (startOffset === endOffset) return;
+
+    const rawText = container.value.slice(startOffset, endOffset);
     const text = rawText.trim();
 
     if (!text) {
@@ -346,19 +352,10 @@ export function ComparisonPanel({
     }
 
     const leadingSpace = rawText.length - rawText.trimStart().length;
-    const start =
-      getTextOffset(container, range.startContainer, range.startOffset) +
-      leadingSpace;
-    const rect = range.getBoundingClientRect();
+    const start = startOffset + leadingSpace;
     const containerRect = container.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(rect.left - containerRect.left, 12),
-      container.clientWidth - 312,
-    );
-    const top = Math.min(
-      Math.max(rect.bottom - containerRect.top + 12, 12),
-      container.clientHeight - 300,
-    );
+    const left = 12;
+    const top = 12;
 
     setSelection({
       text,
@@ -461,23 +458,33 @@ export function ComparisonPanel({
                   )}
                 </ColumnTitle>
                 <ColumnContent
-                  ref={column.isMasked ? undefined : originalContent}
                   isMasked={column.isMasked}
                   onMouseUp={column.isMasked ? undefined : handleSelection}
                 >
-                  {column.content}
-                  {!column.isMasked && selection && (
-                    <MaskSelectionPopover
-                      text={selection.text}
-                      type={selectedType}
-                      shouldRemember={shouldRemember}
-                      options={maskOptions}
-                      position={selection.position}
-                      onTypeChange={setSelectedType}
-                      onRememberChange={setRemember}
-                      onCancel={cancelSelection}
-                      onMask={addManualMask}
+                  {column.isMasked ? column.content : (
+                    <OriginalEditor
+                      ref={originalContent}
+                      value={originalText}
+                      onChange={(event) => onOriginalChange(event.target.value)}
+                      onSelect={handleSelection}
+                      aria-label="원문 편집"
+                      spellCheck={false}
                     />
+                  )}
+                  {!column.isMasked && selection && (
+                    <div contentEditable={false}>
+                      <MaskSelectionPopover
+                        text={selection.text}
+                        type={selectedType}
+                        shouldRemember={shouldRemember}
+                        options={maskOptions}
+                        position={selection.position}
+                        onTypeChange={setSelectedType}
+                        onRememberChange={setRemember}
+                        onCancel={cancelSelection}
+                        onMask={addManualMask}
+                      />
+                    </div>
                   )}
                 </ColumnContent>
               </Column>
