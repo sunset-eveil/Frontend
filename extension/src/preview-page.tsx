@@ -89,6 +89,7 @@ function countOccurrences(text: string, query: string): number {
 export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
   const activeChatId = useRef<string | undefined>(undefined);
+  const activeTabId = useRef<number | undefined>(undefined);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
   const [filterAnchor, setFilterAnchor] = useState<DOMRect | null>(null);
@@ -172,6 +173,23 @@ export function PreviewPage(): ReactNode {
   const [isFetchingMappings, setFetchingMappings] = useState(false);
   const pendingMappingRequests = useRef<PendingMappingRequest[]>([]);
   const pendingFlush = useRef<Promise<void> | undefined>(undefined);
+  const syncResponseMappings = async (
+    requestedChatId: string,
+    mappings: ChatMapping[],
+  ): Promise<void> => {
+    const tabId = activeTabId.current;
+    if (tabId === undefined || !globalThis.chrome?.tabs) return;
+
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'eveil:set-response-mappings',
+        chatId: requestedChatId,
+        mappings,
+      });
+    } catch {
+      // The preview can also run outside a ChatGPT tab.
+    }
+  };
   const flushPendingMappingRequests = async (requestedChatId: string): Promise<void> => {
     if (pendingFlush.current) {
       await pendingFlush.current;
@@ -205,7 +223,10 @@ export function PreviewPage(): ReactNode {
     try {
       if (flushPending) await flushPendingMappingRequests(requestedChatId);
       const mappings = await getChatMappings(requestedChatId);
-      if (activeChatId.current === requestedChatId) setMappingResult({ chatId: requestedChatId, mappings });
+      if (activeChatId.current === requestedChatId) {
+        setMappingResult({ chatId: requestedChatId, mappings });
+        await syncResponseMappings(requestedChatId, mappings);
+      }
       return mappings;
     } finally {
       setFetchingMappings(false);
@@ -235,12 +256,11 @@ export function PreviewPage(): ReactNode {
 
   useEffect(() => {
     let isActive = true;
-    let activeTabId: number | undefined;
     let latestUpdate = 0;
 
     const updateChat = async (conversationId: string | null): Promise<void> => {
       const update = ++latestUpdate;
-      const nextChatId = await getOrCreateChatId(conversationId, activeTabId);
+      const nextChatId = await getOrCreateChatId(conversationId, activeTabId.current);
 
       if (isActive && update === latestUpdate && activeChatId.current !== nextChatId) {
         if (activeChatId.current) {
@@ -257,6 +277,7 @@ export function PreviewPage(): ReactNode {
 
         activeChatId.current = nextChatId;
         setChatId(nextChatId);
+        void loadMappings(nextChatId).catch(() => undefined);
       }
     };
 
@@ -264,7 +285,7 @@ export function PreviewPage(): ReactNode {
       message: { type?: string; conversationId?: string | null },
       sender: chrome.runtime.MessageSender,
     ): void => {
-      if (message.type === 'eveil:conversation-change' && sender.tab?.id === activeTabId) {
+      if (message.type === 'eveil:conversation-change' && sender.tab?.id === activeTabId.current) {
         void updateChat(message.conversationId ?? null);
       }
     };
@@ -276,13 +297,13 @@ export function PreviewPage(): ReactNode {
 
     chrome.runtime.onMessage.addListener(handleMessage);
     void chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
-      activeTabId = tab?.id;
+      activeTabId.current = tab?.id;
       const initialUpdate = ++latestUpdate;
       let conversationId: string | null = null;
 
-      if (activeTabId !== undefined) {
+      if (activeTabId.current !== undefined) {
         try {
-          const result = await chrome.tabs.sendMessage(activeTabId, {
+          const result = await chrome.tabs.sendMessage(activeTabId.current, {
             type: 'eveil:get-conversation',
           });
           conversationId = result?.conversationId ?? null;
@@ -298,6 +319,7 @@ export function PreviewPage(): ReactNode {
 
     return () => {
       isActive = false;
+      activeTabId.current = undefined;
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
   }, []);
