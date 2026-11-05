@@ -294,6 +294,10 @@
     lastInsertedText = text;
     const form = editor.closest('form');
     if (!form) throw new Error('ChatGPT 입력창의 전송 양식을 찾을 수 없습니다.');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (!editor.isConnected || !form.isConnected) {
+      throw new Error('ChatGPT 입력창이 변경됐습니다.');
+    }
     const initialUrl = location.href;
     form.requestSubmit();
     for (let attempt = 0; attempt < 60; attempt += 1) {
