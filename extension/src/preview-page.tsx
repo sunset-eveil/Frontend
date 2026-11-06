@@ -17,9 +17,8 @@ import {
   type MaskDefinition,
   type MaskTypeId,
 } from "./masking";
-import { COLORS } from "./styles/colors";
 import { getOrCreateChatId } from './chat-id';
-import { getCachedChatMappings, type ChatMapping } from './api/chat-mappings';
+import { getCachedChatMappings, getRestoreChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
   createMasking,
   deleteMapping,
@@ -68,10 +67,12 @@ const Page = styled.main`
   padding: 16px;
 `;
 
-const SendStatus = styled.p<{ isError?: boolean }>`
+const SendStatus = styled.div`
   width: min(760px, 100%);
-  margin: 12px 0 0;
-  color: ${({ isError }) => (isError ? "#EF625D" : COLORS.muted)};
+  flex: 0 0 42px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  color: #EF625D;
   font-size: 14px;
   line-height: 1.5;
 `;
@@ -89,7 +90,14 @@ function countOccurrences(text: string, query: string): number {
 
 export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
-  const [isRestoreOpen, setRestoreOpen] = useState(false);
+  const [restoreData, setRestoreData] = useState<Awaited<ReturnType<typeof getRestoreChatMappings>>>();
+  const [isLoadingRestore, setLoadingRestore] = useState(false);
+  const restoreRequest = useRef<symbol | undefined>(undefined);
+  const closeRestore = (): void => {
+    restoreRequest.current = undefined;
+    setLoadingRestore(false);
+    setRestoreData(undefined);
+  };
   const activeChatId = useRef<string | undefined>(undefined);
   const activeTabId = useRef<number | undefined>(undefined);
   const activeConversationId = useRef<string | null>(null);
@@ -135,7 +143,7 @@ export function PreviewPage(): ReactNode {
       }
       if (data.type === 'eveil:panel-hidden') {
         setFilterAnchor(null);
-        setRestoreOpen(false);
+        closeRestore();
       }
       if (data.type === 'eveil:draft-transferred') {
         latestValue.current = '';
@@ -172,8 +180,8 @@ export function PreviewPage(): ReactNode {
   const skipNextRemasking = useRef(false);
 
   useEffect(() => {
-    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(isRestoreOpen ? 'comparison' : screen);
-  }, [screen, isRestoreOpen]);
+    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(restoreData ? 'comparison' : screen);
+  }, [screen, restoreData]);
 
   const [mappingResult, setMappingResult] = useState<{ chatId: string; mappings: ChatMapping[] }>();
   const [isFetchingMappings, setFetchingMappings] = useState(false);
@@ -270,13 +278,14 @@ export function PreviewPage(): ReactNode {
 
     const updateChat = async (conversationId: string | null): Promise<void> => {
       const update = ++latestUpdate;
+      if (activeConversationId.current !== conversationId) closeRestore();
       const nextChatId = await getOrCreateChatId(conversationId, activeTabId.current);
 
       if (!isActive || update !== latestUpdate) return;
       activeConversationId.current = conversationId;
 
       if (activeChatId.current !== nextChatId) {
-        setRestoreOpen(false);
+        closeRestore();
         if (activeChatId.current) {
           setValue('');
           setMaskedValue(null);
@@ -327,6 +336,7 @@ export function PreviewPage(): ReactNode {
           const result = await chrome.tabs.sendMessage(activeTabId.current, {
             type: 'eveil:get-conversation',
           }, { frameId: 0 });
+          if (result?.pendingBinding === true) return;
           conversationId = result?.conversationId ?? null;
         } catch {
           conversationId = null;
@@ -504,9 +514,41 @@ export function PreviewPage(): ReactNode {
   };
 
   const openComparison = (): void => {
+    closeRestore();
     setFilterAnchor(null);
     setScreen('comparison');
     if (value.trim() && !isSending) void maskForPreview();
+  };
+
+  const openResponseRestore = async (): Promise<void> => {
+    if (!chatId || isSending || restoreRequest.current) return;
+    const request = Symbol();
+    restoreRequest.current = request;
+    setLoadingRestore(true);
+    setFilterAnchor(null);
+    setSendStatus(null);
+
+    try {
+      const data = await getRestoreChatMappings(chatId);
+      if (restoreRequest.current !== request || activeChatId.current !== chatId) return;
+      console.info('[Eveil] 조회한 매핑', {
+        chatId,
+        fromCache: data.fromCache,
+        codes: data.mappings.map(({ maskCode, type }) => ({ maskCode, type })),
+      });
+      setRestoreData(data);
+    } catch (error) {
+      if (restoreRequest.current !== request || activeChatId.current !== chatId) return;
+      setSendStatus({
+        message: error instanceof Error ? error.message : '이 대화의 복원 정보를 불러오지 못했어요.',
+        isError: true,
+      });
+    } finally {
+      if (restoreRequest.current === request) {
+        restoreRequest.current = undefined;
+        setLoadingRestore(false);
+      }
+    }
   };
 
   const changeMaskType = async (index: number, isChecked: boolean): Promise<void> => {
@@ -727,10 +769,11 @@ export function PreviewPage(): ReactNode {
     mappings: ChatMapping[],
     text = value,
     masks = manualMasks,
-  ): string => {
+  ): { text: string; codes: string[] } => {
     const segments = getMaskSegments(true, mappings, text, masks);
     let maskedText = '';
     let cursor = 0;
+    const codes = new Set<string>();
 
     for (const segment of segments) {
       maskedText += text.slice(cursor, segment.start);
@@ -739,22 +782,22 @@ export function PreviewPage(): ReactNode {
         ? segment.mapping?.value ?? original
         : segment.manual?.maskCode ?? segment.mapping?.maskCode;
       if (!replacement) throw new Error('가릴 내용의 매핑 코드를 확인할 수 없습니다.');
+      if (!segment.isRevealed) codes.add(replacement);
       maskedText += replacement;
       cursor = segment.end;
     }
 
-    return maskedText + text.slice(cursor);
+    return { text: maskedText + text.slice(cursor), codes: [...codes] };
   };
 
   const resolveManualMasks = (
     masks: ManualMask[],
     mappings: ChatMapping[],
   ): ManualMask[] => masks.map((mask) => {
-    if (mask.maskCode) return mask;
     const mapping = mappings.find(
       (item) => item.value === mask.text.trim() && item.type === getMaskingTypeCode(mask.type),
     );
-    if (!mapping) return mask;
+    if (!mapping) return { ...mask, maskCode: '' };
     const definition = MASK_DEFINITIONS.find((item) => item.id === mask.type);
     const sequence = mapping.maskCode.match(/\d+$/)?.[0];
     return {
@@ -823,6 +866,7 @@ export function PreviewPage(): ReactNode {
 
   const sendToChatGpt = async (): Promise<void> => {
     if (sendInProgress.current || isSending) return;
+    closeRestore();
     sendInProgress.current = true;
     setPosting(true);
     const sourceText = latestValue.current;
@@ -850,7 +894,7 @@ export function PreviewPage(): ReactNode {
         throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
       }
       const sendManualMasks = resolveManualMasks(sourceManualMasks, mappings);
-      const maskedText = toMaskedText(mappings, sourceText, sendManualMasks);
+      const { text: maskedText, codes } = toMaskedText(mappings, sourceText, sendManualMasks);
       const synced = await syncResponseMappings(sourceConversationId, mappings, {
         text: maskedText,
         chatId: sourceChatId,
@@ -861,6 +905,7 @@ export function PreviewPage(): ReactNode {
         throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
       }
       await sendMaskedMessage(maskedText, sourceConversationId);
+      console.info('[Eveil] 전송한 토큰', { chatId: sourceChatId, codes });
       setValue('');
       setCaret({ start: 0, end: 0 });
       setMaskedValue(null);
@@ -907,32 +952,28 @@ export function PreviewPage(): ReactNode {
               caret={caret}
               onCaretChange={setCaret}
               onClose={() => {
+                closeRestore();
                 setFilterAnchor(null);
                 if (IS_EMBEDDED) closeEmbeddedPanel();
                 else setScreen('button');
               }}
               onExpand={openComparison}
-              onRestoreResponse={() => {
-                setFilterAnchor(null);
-                setRestoreOpen(true);
-              }}
+              onRestoreResponse={() => void openResponseRestore()}
               canRestoreResponse={Boolean(chatId) && !isSending}
+              isLoadingRestore={isLoadingRestore}
               onSettings={setFilterAnchor}
               onSend={sendToChatGpt}
               isSending={isSending}
             />
           )}
-      {screen === "chat" && isRestoreOpen && chatId && (
-        <ResponseRestoreDialog key={chatId} chatId={chatId} onClose={() => setRestoreOpen(false)} />
+      {screen === "chat" && restoreData && (
+        <ResponseRestoreDialog {...restoreData} onClose={closeRestore} />
       )}
-          {screen === "chat" && sendStatus?.isError && (
-            <SendStatus
-              role={sendStatus.isError ? "alert" : "status"}
-              isError={sendStatus.isError}
-            >
-              {sendStatus.message}
-            </SendStatus>
-          )}
+      {screen === "chat" && (
+        <SendStatus role="alert" tabIndex={sendStatus?.isError ? 0 : undefined}>
+          {sendStatus?.isError ? sendStatus.message : null}
+        </SendStatus>
+      )}
       {screen === "chat" && filterAnchor && (
         <MaskTypeModal
           anchor={filterAnchor}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { getCachedChatMappings, type ChatMapping } from "../api/chat-mappings";
+import type { ChatMapping } from "../api/chat-mappings";
 import { getMaskingTypeCode } from "../api/maskings";
 import { MASK_DEFINITIONS } from "../masking";
 import { COLORS } from "../styles/colors";
@@ -90,16 +90,18 @@ function restoreText(text: string, mappings: ChatMapping[]) {
   return { text: restored, matched: [...matched], missing: [...missing] };
 }
 
-export function ResponseRestoreDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
+export function ResponseRestoreDialog({ mappings, fromCache, onClose }: {
+  mappings: ChatMapping[];
+  fromCache: boolean;
+  onClose: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const inputField = useRef<HTMLTextAreaElement>(null);
   const outputField = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
-  const [mappings, setMappings] = useState<ChatMapping[]>();
-  const [error, setError] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
-  const result = useMemo(() => mappings ? restoreText(input, mappings) : undefined, [input, mappings]);
-  const output = result?.text ?? "";
+  const result = useMemo(() => restoreText(input, mappings), [input, mappings]);
+  const output = result.text;
 
   useEffect(() => {
     const element = dialog.current;
@@ -109,20 +111,7 @@ export function ResponseRestoreDialog({ chatId, onClose }: { chatId: string; onC
   }, []);
 
   useEffect(() => {
-    let active = true;
-    void getCachedChatMappings(chatId, { refresh: true }).then(
-      (result) => {
-        if (!active) return;
-        console.info("[Eveil] 조회한 매핑", result.map(({ maskCode, type }) => ({ maskCode, type })));
-        setMappings(result);
-      },
-      () => { if (active) setError(true); },
-    );
-    return () => { active = false; };
-  }, [chatId]);
-
-  useEffect(() => {
-    if (!result || (!result.matched.length && !result.missing.length)) return;
+    if (!result.matched.length && !result.missing.length) return;
     console.info("[Eveil] 복원 토큰", { matched: result.matched, missing: result.missing });
   }, [result]);
 
@@ -148,6 +137,7 @@ export function ResponseRestoreDialog({ chatId, onClose }: { chatId: string; onC
         <h2 id="response-restore-title">답변 복원</h2>
         <IconButton icon="close" label="답변 복원 닫기" onClick={onClose} />
       </Header>
+      {fromCache && <p role="status">최신 복원 정보를 가져오지 못해 이전에 조회한 정보를 사용하고 있어요.</p>}
       <Fields>
         <Field>
           마스킹된 답변
@@ -168,11 +158,9 @@ export function ResponseRestoreDialog({ chatId, onClose }: { chatId: string; onC
       </Fields>
       <Footer>
         <span role="status">
-          {error ? "이 대화의 매핑을 불러오지 못했어요. 모달을 다시 열어 시도해 주세요."
-            : !mappings ? "이 대화의 매핑을 불러오는 중이에요."
-            : copyStatus || (result?.missing.length ? `이 대화에 복원 정보가 없는 토큰: ${result.missing.join(", ")}`
-              : input && !mappings.length ? "이 대화에 저장된 복원 정보가 없어요."
-              : input && output === input ? "이 대화의 복원 정보와 일치하는 토큰이 없어요." : "")}
+          {copyStatus || (result.missing.length ? `이 대화에 복원 정보가 없는 토큰: ${result.missing.join(", ")}`
+            : !mappings.length ? "이 대화에 저장된 복원 정보가 없어요."
+            : input && output === input ? "이 대화의 복원 정보와 일치하는 토큰이 없어요." : "")}
         </span>
         <Button type="button" disabled={!output.trim()} onClick={() => void copyOutput()}>
           원문 복사

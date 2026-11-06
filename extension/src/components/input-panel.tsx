@@ -27,6 +27,7 @@ type InputPanelProps = {
   onExpand: () => void;
   onRestoreResponse: () => void;
   canRestoreResponse: boolean;
+  isLoadingRestore: boolean;
   onSettings: (anchor: DOMRect) => void;
   onSend?: () => void;
   isSending?: boolean;
@@ -189,6 +190,7 @@ export function InputPanel({
   onExpand,
   onRestoreResponse,
   canRestoreResponse,
+  isLoadingRestore,
   onSettings,
   onSend,
   isSending = false,
@@ -247,8 +249,8 @@ export function InputPanel({
           onClick={(event) => onSettings(event.currentTarget.getBoundingClientRect())}
         />
         <IconButton icon="expand" label="비교 화면 열기" onClick={onExpand} />
-        <SendButton type="button" disabled={!canRestoreResponse} onClick={onRestoreResponse}>
-          답변 복원
+        <SendButton type="button" disabled={!canRestoreResponse || isLoadingRestore} onClick={onRestoreResponse}>
+          {isLoadingRestore ? '복원 정보 조회 중…' : '답변 복원'}
         </SendButton>
         <SendButton
           type="button"

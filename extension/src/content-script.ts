@@ -22,9 +22,10 @@
   const USER_MESSAGE = '[data-message-author-role="user"]';
   const FIRST_MESSAGE_TIMEOUT = 30_000;
 
-  let lastUrl = '';
+  let lastPathname = '';
   let frame: HTMLIFrameElement | undefined;
   let composer: HTMLElement | null = null;
+  let composerEditor: HTMLElement | undefined;
   let isOpen = false;
   let isExpanded = false;
   let draft = '';
@@ -36,6 +37,7 @@
   let pendingLayout: number | undefined;
   let isDisposed = false;
   let pageObserver: MutationObserver | undefined;
+  let composerObserver: ResizeObserver | undefined;
   let responseMappings: ChatMapping[] = [];
   let responseMappingRevision = 0;
   let responseConversationId: string | null = null;
@@ -44,7 +46,7 @@
     text: string;
     chatId: string;
     mappings: ChatMapping[];
-    originUrl: string;
+    originPathname: string;
     conversationId?: string;
     binding?: 'pending' | 'saved' | 'failed';
     timeout: number;
@@ -54,7 +56,7 @@
 
   const control = document.createElement('span');
   control.id = CONTROL_ID;
-  control.style.cssText = 'all:initial!important;position:absolute!important;z-index:10!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:74px!important;height:36px!important;min-height:36px!important;overflow:visible!important;line-height:0!important;box-sizing:border-box!important;';
+  control.style.cssText = 'all:initial!important;position:fixed!important;top:12px!important;left:50%!important;transform:translateX(-50%)!important;z-index:2147482999!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:74px!important;height:36px!important;min-height:36px!important;overflow:visible!important;line-height:0!important;box-sizing:border-box!important;';
   const controlShadow = control.attachShadow({ mode: 'open' });
   controlShadow.innerHTML = `
     <style>
@@ -82,15 +84,17 @@
       .composer-cover { position: absolute; background: #212121; pointer-events: auto; }
       iframe { position: absolute; z-index: 1; display: block; border: 0; border-radius: 20px; background: transparent;
         pointer-events: auto; color-scheme: dark; }
-      .hint { position: absolute; box-sizing: border-box; width: 262px; padding: 13px 14px;
+      .hint { position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+        box-sizing: border-box; width: min(262px, calc(100% - 24px)); padding: 13px 14px;
         border: 1px solid #9184d9; border-radius: 12px; background: #242432; color: #eceaf5;
         box-shadow: 0 6px 18px #0006; font: 14px/1.6 system-ui, sans-serif; pointer-events: auto; }
       .hint p { margin: 7px 0 10px; color: #c1bfce; }
       .hint div { display: flex; justify-content: flex-end; }
       .hint button { border: 1px solid #9184d9; border-radius: 8px; padding: 5px 12px;
         background: transparent; color: inherit; cursor: pointer; font: inherit; }
-      .hint::after { content: ''; position: absolute; right: 24px; bottom: -7px; width: 12px; height: 12px;
-        border-right: 1px solid #9184d9; border-bottom: 1px solid #9184d9; background: #242432; transform: rotate(45deg); }
+      .hint::after { content: ''; position: absolute; left: 50%; top: -7px; width: 12px; height: 12px;
+        border-left: 1px solid #9184d9; border-top: 1px solid #9184d9; background: #242432;
+        transform: translateX(-50%) rotate(45deg); }
     </style>
     <div class="backdrop" hidden aria-hidden="true"></div>
     <div class="composer-cover" hidden aria-hidden="true"></div>
@@ -108,6 +112,7 @@
     if (isDisposed) return;
     isDisposed = true;
     pageObserver?.disconnect();
+    composerObserver?.disconnect();
     events.abort();
     if (pendingLayout !== undefined) cancelAnimationFrame(pendingLayout);
     clearFirstMessage();
@@ -215,12 +220,22 @@
   }
 
   function getComposerEditor(): HTMLElement | undefined {
-    return Array.from(document.querySelectorAll<HTMLElement>(
-      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder], textarea[placeholder*="메시지"], textarea[placeholder*="Message"]',
-    )).find((candidate) => {
+    const visible = (candidate: HTMLElement): boolean => {
       const bounds = candidate.getBoundingClientRect();
-      return bounds.width > 0 && bounds.height > 0;
-    });
+      return bounds.width > 0 && bounds.height > 0 && getComputedStyle(candidate).visibility === 'visible' &&
+        !candidate.closest('[hidden], [inert], [aria-hidden="true"], [data-message-author-role]');
+    };
+    const selectors = [
+      '#prompt-textarea, textarea[data-testid="prompt-textarea"]',
+      '[data-type="unified-composer"] [contenteditable="true"], #composer-background [contenteditable="true"], [data-testid="composer"] [contenteditable="true"]',
+      '[contenteditable="true"][role="textbox"], [contenteditable="true"][data-placeholder], textarea[placeholder*="메시지"], textarea[placeholder*="Message"]',
+    ];
+    for (const selector of selectors) {
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+      const candidate = candidates.reverse().find(visible);
+      if (candidate) return candidate;
+    }
+    return undefined;
   }
 
   function getComposerContainer(editor: HTMLElement): HTMLElement | null {
@@ -288,9 +303,6 @@
   function applyOpenState(nextOpen: boolean): void {
     isOpen = nextOpen;
     if (!isOpen) frame?.contentWindow?.postMessage({ type: 'eveil:panel-hidden' }, EXTENSION_ORIGIN);
-    trigger.setAttribute('aria-expanded', String(isOpen));
-    control.style.setProperty('display', isOpen ? 'none' : 'inline-flex', 'important');
-    backdrop.hidden = !isOpen || !isExpanded;
     if (isOpen && !frame) {
       frame = document.createElement('iframe');
       frame.allow = 'clipboard-write';
@@ -299,7 +311,6 @@
       overlayShadow.append(frame);
     }
     if (isOpen && frameReady) sendComposerValue();
-    if (frame) frame.hidden = !isOpen;
     updatePosition();
   }
 
@@ -345,50 +356,27 @@
       if (frame) frame.hidden = true;
       return;
     }
-    if (!composer?.isConnected) {
-      const editor = getComposerEditor();
-      composer = editor ? getComposerContainer(editor) : null;
-      if (!composer?.isConnected) {
-        hint.hidden = true;
-        backdrop.hidden = true;
-        composerCover.hidden = true;
-        if (frame) frame.hidden = true;
-        if (allowRetry) requestAnimationFrame(() => updatePosition(false));
-        return;
-      }
+    const editor = getComposerEditor();
+    const container = editor ? getComposerContainer(editor) : null;
+    if (editor !== composerEditor || container !== composer) {
+      composerEditor = editor;
+      composer = container;
+      composerObserver?.disconnect();
+      if (editor) composerObserver?.observe(editor);
+      if (composer && composer !== editor) composerObserver?.observe(composer);
     }
-    const bounds = composer.getBoundingClientRect();
-    if (!bounds.width || !bounds.height) {
-      hint.hidden = true;
+    const bounds = composer?.getBoundingClientRect();
+    const panelVisible = isOpen && Boolean(bounds?.width && bounds.height);
+    trigger.setAttribute('aria-expanded', String(panelVisible));
+    control.style.setProperty('display', panelVisible ? 'none' : 'inline-flex', 'important');
+    hint.hidden = hintDismissed || isOpen;
+    if (!bounds?.width || !bounds.height) {
       backdrop.hidden = true;
       composerCover.hidden = true;
       if (frame) frame.hidden = true;
       if (allowRetry) requestAnimationFrame(() => updatePosition(false));
       return;
     }
-    const visible = (element: HTMLElement): boolean => {
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    const model = Array.from(composer.querySelectorAll<HTMLElement>(
-      '[data-testid="model-switcher-dropdown-button"], button, [role="button"]',
-    )).find((element) => visible(element) && (
-      element.dataset.testid === 'model-switcher-dropdown-button' ||
-      /^(Instant|Auto|Thinking|Pro)\b/i.test(element.textContent?.trim() ?? '')
-    ));
-    const action = model ?? Array.from(composer.querySelectorAll<HTMLElement>(
-      '#composer-submit-button, [data-testid="send-button"], [data-testid="composer-speech-button"]',
-    )).find(visible);
-    const target = action?.getBoundingClientRect();
-    const x = target ? target.left - 82 : bounds.right - 264;
-    const y = bounds.top + (bounds.height - 36) / 2;
-    // all:initial!important isolates the host from page CSS; coordinates must
-    // have the same priority or that reset wins and the button becomes static.
-    control.style.setProperty('position', 'fixed', 'important');
-    control.style.setProperty('z-index', '2147482999', 'important');
-    control.style.setProperty('left', `${Math.max(bounds.left + 8, x)}px`, 'important');
-    control.style.setProperty('top', `${Math.max(8, y)}px`, 'important');
-    const anchor = trigger.getBoundingClientRect();
     const width = isExpanded
       ? window.innerWidth
       : Math.min(760, Math.max(360, bounds.width), window.innerWidth - 24);
@@ -402,6 +390,7 @@
     const top = isExpanded
       ? 0
       : Math.max(12, Math.min(bounds.bottom + 16 - height, window.innerHeight - height - 12));
+    backdrop.hidden = !isOpen || !isExpanded;
     composerCover.hidden = !isOpen || isExpanded;
     if (!composerCover.hidden) {
       composerCover.style.cssText = `left:${bounds.left}px;top:${bounds.top}px;width:${bounds.width}px;height:${bounds.height}px;`;
@@ -410,26 +399,14 @@
       frame.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;`;
       frame.hidden = !isOpen;
     }
-    hint.hidden = hintDismissed || isOpen;
-    if (!hint.hidden) {
-      hint.style.left = `${Math.max(12, Math.min(anchor.right - 262, window.innerWidth - 274))}px`;
-      hint.style.top = `${Math.max(12, anchor.top - hint.getBoundingClientRect().height - 12)}px`;
-    }
   }
 
-  function mountControl(allowRetry = true): void {
+  function mountControl(): void {
     if (!hasContext()) return;
     document.querySelectorAll(`#${CONTROL_ID}`).forEach((element) => {
       if (element !== control) element.remove();
     });
-    const editor = getComposerEditor();
-    composer = editor ? getComposerContainer(editor) : null;
-    if (!editor || !composer) {
-      if (allowRetry) requestAnimationFrame(() => mountControl(false));
-      return;
-    }
-    // Keep the button outside ChatGPT's clipped action wrappers. Those wrappers
-    // are often shorter than the pill and cut off its top and bottom borders.
+    // Mount independently of the composer so ChatGPT's layout cannot hide the trigger.
     if (control.parentElement !== document.documentElement) document.documentElement.append(control);
     if (!overlay.isConnected) document.documentElement.append(overlay);
     updatePosition();
@@ -488,7 +465,7 @@
       clearFirstMessage();
       firstMessage = {
         ...prepared,
-        originUrl: initialUrl,
+        originPathname: location.pathname,
         timeout: window.setTimeout(() => {
           clearFirstMessage();
           scheduleLayout();
@@ -517,10 +494,10 @@
   }
 
   function notifyConversationChange(): void {
-    if (location.href === lastUrl) return;
+    if (location.pathname === lastPathname) return;
     const conversationId = getConversationId();
     let sentMappings: ChatMapping[] | undefined;
-    if (firstMessage && location.href !== firstMessage.originUrl) {
+    if (firstMessage && location.pathname !== firstMessage.originPathname) {
       if (conversationId && (!firstMessage.conversationId ||
         firstMessage.conversationId === conversationId)) {
         firstMessage.conversationId = conversationId;
@@ -528,7 +505,8 @@
         // Wait for ChatGPT to render the first turn before assigning its mappings.
         if (!userMessages.length) return;
         const normalize = (value: string): string => value.replace(/\s+/g, ' ').trim();
-        if (userMessages.length === 1 && normalize(userMessages[0].innerText) === normalize(firstMessage.text)) {
+        const submitted = normalize(firstMessage.text);
+        if (Array.from(userMessages).every((message) => normalize(message.innerText) === submitted)) {
           const candidate = firstMessage;
           if (candidate.binding === 'pending') return;
           if (!candidate.binding) {
@@ -553,7 +531,7 @@
       }
       clearFirstMessage();
     }
-    if (!lastUrl || responseConversationId !== conversationId) {
+    if (!lastPathname || responseConversationId !== conversationId) {
       responseConversationId = conversationId;
       setResponseMappings(sentMappings ?? []);
       const revision = responseMappingRevision;
@@ -568,11 +546,11 @@
         }
       });
     }
-    if (lastUrl) {
+    if (lastPathname) {
       setOpen(false, false);
       draft = '';
     }
-    lastUrl = location.href;
+    lastPathname = location.pathname;
     runExtensionTask(() => chrome.runtime.sendMessage({
       type: 'eveil:conversation-change',
       conversationId,
@@ -653,7 +631,6 @@
     }
     if (data.type === 'eveil:mode' && 'mode' in data && (data.mode === 'chat' || data.mode === 'comparison')) {
       isExpanded = data.mode === 'comparison';
-      backdrop.hidden = !isOpen || !isExpanded;
       updatePosition();
     }
     if (data.type === 'eveil:resize' && 'height' in data && typeof data.height === 'number' && Number.isFinite(data.height)) {
@@ -684,7 +661,10 @@
       sendResponse({ updated: true });
     }
     if (message?.type === 'eveil:get-conversation') {
-      sendResponse({ conversationId: getConversationId() });
+      notifyConversationChange();
+      // Do not let the panel allocate an ID before the first-send binding completes.
+      if (location.pathname !== lastPathname) sendResponse({ pendingBinding: true });
+      else sendResponse({ conversationId: getConversationId() });
     }
     if (message?.type === 'eveil:toggle-composer') {
       mountControl();
@@ -702,16 +682,21 @@
   });
   window.addEventListener('popstate', scheduleLayout, eventOptions);
   window.addEventListener('hashchange', scheduleLayout, eventOptions);
-  window.addEventListener('resize', () => updatePosition(), eventOptions);
-  window.addEventListener('scroll', () => updatePosition(), { ...eventOptions, capture: true });
+  window.addEventListener('resize', scheduleLayout, eventOptions);
+  window.addEventListener('scroll', scheduleLayout, { ...eventOptions, capture: true });
   window.addEventListener('eveil:dispose-content', dispose, eventOptions);
   if (hasContext()) {
+    composerObserver = new ResizeObserver(scheduleLayout);
     pageObserver = new MutationObserver((records) => {
-      if (firstMessage || records.some(({ type }) => type === 'childList')) scheduleLayout();
+      if (firstMessage || records.some(({ type, target }) => (
+        type === 'childList' || (isOpen && target !== control && target !== overlay)
+      ))) scheduleLayout();
     });
     pageObserver.observe(document.documentElement, {
       childList: true,
       characterData: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'hidden', 'inert', 'aria-hidden', 'contenteditable'],
       subtree: true,
     });
     document.addEventListener('copy', handleResponseCopy, { ...eventOptions, capture: true });

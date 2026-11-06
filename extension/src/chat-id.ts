@@ -1,5 +1,6 @@
 const CHAT_IDS_KEY = 'eveilChatIds';
 const PENDING_IDS_KEY = 'eveilPendingChatIds';
+const CHAT_ID_STORAGE_LOCK = 'eveil-chat-id-storage';
 
 export async function findChatId(conversationId: string): Promise<string | undefined> {
   const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
@@ -11,6 +12,11 @@ export async function bindFirstMessageChatId(
   tabId: number,
   sentChatId: string,
 ): Promise<boolean> {
+  return navigator.locks.request(CHAT_ID_STORAGE_LOCK, () =>
+    bindPendingChatId(conversationId, tabId, sentChatId));
+}
+
+async function bindPendingChatId(conversationId: string, tabId: number, sentChatId: string): Promise<boolean> {
   const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
   const chatIds = (stored[CHAT_IDS_KEY] ?? {}) as Record<string, string>;
   if (chatIds[conversationId]) return chatIds[conversationId] === sentChatId;
@@ -40,6 +46,10 @@ export async function getOrCreateChatId(
     return chatId;
   }
 
+  return navigator.locks.request(CHAT_ID_STORAGE_LOCK, () => resolveStoredChatId(conversationId, tabId));
+}
+
+async function resolveStoredChatId(conversationId: string | null, tabId?: number): Promise<string> {
   const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
   const chatIds = (stored[CHAT_IDS_KEY] ?? {}) as Record<string, string>;
   const pending = await chrome.storage.session.get(PENDING_IDS_KEY);

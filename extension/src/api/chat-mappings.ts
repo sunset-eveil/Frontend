@@ -5,11 +5,17 @@ import { getApiBaseUrl, getAuthHeaders } from './config';
 export type { ChatMapping } from '../mapping-crypto';
 
 const CACHE_TTL_MS = 60_000;
-const mappingCache = new Map<string, {
-  request: Promise<ChatMapping[]>;
-  expiresAt?: number;
+type CacheEntry = {
+  request?: Promise<ChatMapping[]>;
+  snapshot?: { mappings: ChatMapping[]; expiresAt: number };
   timer?: ReturnType<typeof setTimeout>;
-}>();
+};
+const mappingCache = new Map<string, CacheEntry>();
+class TemporaryMappingError extends Error {}
+
+function readSnapshot(entry: CacheEntry | undefined): ChatMapping[] | undefined {
+  return entry?.snapshot && entry.snapshot.expiresAt > Date.now() ? entry.snapshot.mappings : undefined;
+}
 
 export function invalidateChatMappings(chatId: string): void {
   clearTimeout(mappingCache.get(chatId)?.timer);
@@ -20,29 +26,44 @@ export function getCachedChatMappings(
   chatId: string,
   { refresh = false }: { refresh?: boolean } = {},
 ): Promise<ChatMapping[]> {
-  const cached = mappingCache.get(chatId);
-  if (cached && (cached.expiresAt === undefined || (!refresh && cached.expiresAt > Date.now()))) {
-    return cached.request;
-  }
-  invalidateChatMappings(chatId);
+  const entry = mappingCache.get(chatId) ?? {};
+  if (entry.request) return entry.request;
+  const cached = readSnapshot(entry);
+  if (!refresh && cached) return Promise.resolve(cached);
 
-  const entry: NonNullable<ReturnType<typeof mappingCache.get>> = {
-    request: getChatMappings(chatId).then((mappings) => {
-      if (mappingCache.get(chatId) !== entry) return getCachedChatMappings(chatId);
-      if (mappings.length === 0) {
-        invalidateChatMappings(chatId);
-      } else {
-        entry.expiresAt = Date.now() + CACHE_TTL_MS;
-        entry.timer = setTimeout(() => invalidateChatMappings(chatId), CACHE_TTL_MS);
-      }
-      return mappings;
-    }, (error: unknown) => {
-      if (mappingCache.get(chatId) === entry) invalidateChatMappings(chatId);
-      throw error;
-    }),
-  };
+  entry.request = getChatMappings(chatId).then((mappings) => {
+    if (mappingCache.get(chatId) !== entry) return getCachedChatMappings(chatId);
+    entry.request = undefined;
+    clearTimeout(entry.timer);
+    if (mappings.length === 0) {
+      invalidateChatMappings(chatId);
+    } else {
+      entry.snapshot = { mappings, expiresAt: Date.now() + CACHE_TTL_MS };
+      entry.timer = setTimeout(() => {
+        entry.snapshot = undefined;
+        if (!entry.request && mappingCache.get(chatId) === entry) mappingCache.delete(chatId);
+      }, CACHE_TTL_MS);
+    }
+    return mappings;
+  }, (error: unknown) => {
+    if (mappingCache.get(chatId) === entry) {
+      entry.request = undefined;
+      if (!(error instanceof TemporaryMappingError) || !readSnapshot(entry)) invalidateChatMappings(chatId);
+    }
+    throw error;
+  });
   mappingCache.set(chatId, entry);
   return entry.request;
+}
+
+export async function getRestoreChatMappings(chatId: string): Promise<{ mappings: ChatMapping[]; fromCache: boolean }> {
+  try {
+    return { mappings: await getCachedChatMappings(chatId, { refresh: true }), fromCache: false };
+  } catch (error) {
+    const cached = readSnapshot(mappingCache.get(chatId));
+    if (error instanceof TemporaryMappingError && cached) return { mappings: cached, fromCache: true };
+    throw error;
+  }
 }
 
 export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
@@ -56,7 +77,7 @@ export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
       { headers: getAuthHeaders(credentials), cache: 'no-store' },
     );
   } catch {
-    throw new Error('매핑 API에 연결할 수 없습니다.');
+    throw new TemporaryMappingError('매핑 API에 연결할 수 없습니다.');
   }
 
   if (response.status === 404) {
@@ -65,6 +86,10 @@ export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
 
   if (response.status === 401) {
     throw new Error('클라이언트 인증에 실패했습니다.');
+  }
+
+  if (response.status === 429 || response.status >= 500) {
+    throw new TemporaryMappingError(`매핑 조회에 실패했습니다. (HTTP ${response.status})`);
   }
 
   if (!response.ok) {
