@@ -42,7 +42,7 @@ export function sendMaskedMessage(text: string, conversationId: string | null): 
     const timeout = window.setTimeout(() => {
       window.removeEventListener('message', handleResult);
       reject(new Error('ChatGPT 전송 응답을 확인하지 못했습니다.'));
-    }, 10_000);
+    }, conversationId === null ? 40_000 : 10_000);
     const handleResult = (event: MessageEvent<unknown>): void => {
       if (event.source !== window.parent || event.origin !== parentOrigin) return;
       const data = event.data;

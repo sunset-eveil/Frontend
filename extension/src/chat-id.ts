@@ -17,6 +17,17 @@ export async function bindFirstMessageChatId(
     bindPendingChatId(conversationId, tabId, sentChatId));
 }
 
+export async function discardPendingChatId(tabId: number, sentChatId: string): Promise<void> {
+  return navigator.locks.request(CHAT_ID_STORAGE_LOCK, async () => {
+    const pending = await chrome.storage.session.get(PENDING_IDS_KEY);
+    const pendingIds = (pending[PENDING_IDS_KEY] ?? {}) as Record<string, string>;
+    const tabKey = String(tabId);
+    if (pendingIds[tabKey] !== sentChatId) return;
+    delete pendingIds[tabKey];
+    await chrome.storage.session.set({ [PENDING_IDS_KEY]: pendingIds });
+  });
+}
+
 async function bindPendingChatId(conversationId: string, tabId: number, sentChatId: string): Promise<boolean> {
   const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
   const chatIds = (stored[CHAT_IDS_KEY] ?? {}) as Record<string, string>;

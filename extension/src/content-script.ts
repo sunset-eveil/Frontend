@@ -41,6 +41,7 @@
   let responseMappings: ChatMapping[] = [];
   let responseMappingRevision = 0;
   let responseConversationId: string | null = null;
+  const failedConversationBindings = new Set<string>();
   let preparedResponse: { text: string; chatId: string; mappings: ChatMapping[] } | undefined;
   let firstMessage: {
     text: string;
@@ -49,6 +50,7 @@
     originPathname: string;
     conversationId?: string;
     binding?: 'pending' | 'saved' | 'failed';
+    finish: (error?: Error) => void;
     timeout: number;
   } | undefined;
   const events = new AbortController();
@@ -115,7 +117,7 @@
     composerObserver?.disconnect();
     events.abort();
     if (pendingLayout !== undefined) cancelAnimationFrame(pendingLayout);
-    clearFirstMessage();
+    clearFirstMessage(new Error('ChatGPT 전송 확인이 중단됐습니다.'));
     control.remove();
     overlay.remove();
     try {
@@ -161,9 +163,27 @@
     responseMappings = mappings.filter(({ maskCode, value }) => maskCode && value);
   }
 
-  function clearFirstMessage(): void {
-    if (firstMessage) window.clearTimeout(firstMessage.timeout);
+  function clearFirstMessage(error?: Error): void {
+    const candidate = firstMessage;
     firstMessage = undefined;
+    if (!candidate) return;
+    window.clearTimeout(candidate.timeout);
+    candidate.finish(error);
+  }
+
+  function failFirstMessage(conversationId: string | null): void {
+    const candidate = firstMessage;
+    if (conversationId && candidate) {
+      failedConversationBindings.add(conversationId);
+      runExtensionTask(() => chrome.runtime.sendMessage({
+        type: 'eveil:discard-first-message',
+        conversationId,
+        chatId: candidate.chatId,
+      }));
+    }
+    clearFirstMessage(new Error(conversationId
+      ? '이 대화에 복원 정보를 연결하지 못했어요.'
+      : 'ChatGPT에서 첫 메시지의 전송을 확인하지 못했어요.'));
   }
 
   function getResponseValues(): Map<string, string> {
@@ -320,6 +340,11 @@
 
   function closeWithCurrentDraft(): void {
     if (!isOpen) return;
+    const conversationId = getConversationId();
+    if (firstMessage || (conversationId && failedConversationBindings.has(conversationId))) {
+      setOpen(false, false);
+      return;
+    }
     if (!frameReady || !frame?.contentWindow) {
       frame?.contentWindow?.postMessage({
         type: 'eveil:close-error',
@@ -484,23 +509,29 @@
     const initialUrl = location.href;
     const prepared = preparedResponse;
     preparedResponse = undefined;
-    if (!conversationId && prepared?.text === text) {
-      clearFirstMessage();
-      firstMessage = {
-        ...prepared,
-        originPathname: location.pathname,
-        timeout: window.setTimeout(() => {
-          clearFirstMessage();
-          scheduleLayout();
-        }, FIRST_MESSAGE_TIMEOUT),
-      };
+    if (!conversationId) {
+      if (prepared?.text !== text) throw new Error('첫 메시지의 복원 정보를 준비하지 못했어요.');
+      if (firstMessage) throw new Error('첫 메시지의 전송을 확인하는 중이에요.');
+
+      return new Promise<void>((resolve, reject) => {
+        firstMessage = {
+          ...prepared,
+          originPathname: location.pathname,
+          finish: (error) => error === undefined ? resolve() : reject(error),
+          timeout: window.setTimeout(() => {
+            failFirstMessage(firstMessage?.conversationId ?? getConversationId());
+            scheduleLayout();
+          }, FIRST_MESSAGE_TIMEOUT),
+        };
+        try {
+          form.requestSubmit();
+        } catch (error) {
+          clearFirstMessage(error instanceof Error ? error : new Error('ChatGPT로 전송하지 못했습니다.'));
+        }
+        scheduleLayout();
+      });
     }
-    try {
-      form.requestSubmit();
-    } catch (error) {
-      clearFirstMessage();
-      throw error;
-    }
+    form.requestSubmit();
     for (let attempt = 0; attempt < 60; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 50));
       if (!editor.isConnected && location.href !== initialUrl) {
@@ -511,8 +542,6 @@
         return;
       }
     }
-    clearFirstMessage();
-    scheduleLayout();
     throw new Error('ChatGPT 입력창에 내용이 남아 있습니다. 전송 여부를 확인해 주세요.');
   }
 
@@ -521,24 +550,21 @@
     const conversationId = getConversationId();
     let sentMappings: ChatMapping[] | undefined;
     if (firstMessage && location.pathname !== firstMessage.originPathname) {
-      if (isOpen) setOpen(false, false);
       if (conversationId && (!firstMessage.conversationId ||
         firstMessage.conversationId === conversationId)) {
-        firstMessage.conversationId = conversationId;
-        const userMessages = document.querySelectorAll<HTMLElement>(USER_MESSAGE);
-        // Wait for ChatGPT to render the first turn before assigning its mappings.
-        if (!userMessages.length) return;
-        const normalize = (value: string): string => value
-          .replace(/[\u200b\ufeff]/g, '').replace(/\s+/g, ' ').trim();
-        const submitted = normalize(firstMessage.text);
-        const matches = (message: HTMLElement): boolean => {
-          const body = message.querySelector<HTMLElement>('.whitespace-pre-wrap') ?? message;
-          return normalize(body.innerText) === submitted || normalize(body.textContent ?? '') === submitted;
-        };
-        if (!Array.from(userMessages).every(matches)) return;
         const candidate = firstMessage;
+        candidate.conversationId = conversationId;
         if (candidate.binding === 'pending') return;
         if (!candidate.binding) {
+          const firstUserMessage = Array.from(document.querySelectorAll<HTMLElement>(USER_MESSAGE))
+            .find((message) => !message.closest('[hidden], [inert], [aria-hidden="true"]'));
+          if (!firstUserMessage) return;
+          const normalize = (value: string): string => value
+            .replace(/[\u200b\ufeff]/g, '').normalize('NFC').replace(/\s+/g, ' ').trim();
+          const submitted = normalize(candidate.text);
+          // Later turns do not change which initial submission created the chat.
+          const body = firstUserMessage.querySelector<HTMLElement>('.whitespace-pre-wrap') ?? firstUserMessage;
+          if (normalize(body.innerText) !== submitted && normalize(body.textContent ?? '') !== submitted) return;
           candidate.binding = 'pending';
           runExtensionTask(async () => {
             try {
@@ -555,15 +581,22 @@
           });
           return;
         }
-        if (candidate.binding === 'saved') sentMappings = candidate.mappings;
+        if (candidate.binding === 'saved') {
+          sentMappings = candidate.mappings;
+          clearFirstMessage();
+        } else {
+          failFirstMessage(conversationId);
+        }
+      } else {
+        failFirstMessage(firstMessage.conversationId ?? null);
       }
-      clearFirstMessage();
     }
+    const bindingFailed = conversationId !== null && failedConversationBindings.has(conversationId);
     if (!lastPathname || responseConversationId !== conversationId) {
       responseConversationId = conversationId;
       setResponseMappings(sentMappings ?? []);
       const revision = responseMappingRevision;
-      if (conversationId && !sentMappings) runExtensionTask(async () => {
+      if (conversationId && !sentMappings && !bindingFailed) runExtensionTask(async () => {
         const result = await chrome.runtime.sendMessage({
           type: 'eveil:get-response-mappings',
           conversationId,
@@ -574,7 +607,7 @@
         }
       });
     }
-    if (lastPathname) {
+    if (lastPathname && !bindingFailed) {
       setOpen(false, false);
       draft = '';
     }
@@ -582,6 +615,7 @@
     runExtensionTask(() => chrome.runtime.sendMessage({
       type: 'eveil:conversation-change',
       conversationId,
+      bindingFailed,
     }));
   }
 
@@ -626,8 +660,12 @@
       if (pendingCloseTimeout !== undefined) window.clearTimeout(pendingCloseTimeout);
       pendingCloseTimeout = undefined;
       pendingCloseRequestId = undefined;
-      draft = data.text;
-      setOpen(false);
+      const conversationId = getConversationId();
+      if (firstMessage || (conversationId && failedConversationBindings.has(conversationId))) setOpen(false, false);
+      else {
+        draft = data.text;
+        setOpen(false);
+      }
     }
     if (data.type === 'eveil:draft' && 'text' in data && typeof data.text === 'string') {
       draft = data.text;
@@ -692,7 +730,13 @@
       notifyConversationChange();
       // Do not let the panel allocate an ID before the first-send binding completes.
       if (location.pathname !== lastPathname) sendResponse({ pendingBinding: true });
-      else sendResponse({ conversationId: getConversationId() });
+      else {
+        const conversationId = getConversationId();
+        sendResponse({
+          conversationId,
+          bindingFailed: conversationId !== null && failedConversationBindings.has(conversationId),
+        });
+      }
     }
     if (message?.type === 'eveil:toggle-composer') {
       mountControl();

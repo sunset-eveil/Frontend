@@ -92,6 +92,7 @@ function countOccurrences(text: string, query: string): number {
 
 export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
+  const [bindingFailed, setBindingFailed] = useState(false);
   const [registration, setRegistration] = useState<{ chatId: string; mode: RegistrationMode }>();
   const registrationMode = registration?.chatId === chatId ? registration?.mode : undefined;
   const [restoreData, setRestoreData] = useState<Awaited<ReturnType<typeof getRestoreChatMappings>>>();
@@ -280,12 +281,14 @@ export function PreviewPage(): ReactNode {
     let isActive = true;
     let latestUpdate = 0;
 
-    const updateChat = async (conversationId: string | null): Promise<void> => {
+    const updateChat = async (conversationId: string | null, failed = false): Promise<void> => {
       const update = ++latestUpdate;
       if (activeConversationId.current !== conversationId) closeRestore();
-      const nextChatId = await getOrCreateChatId(conversationId, activeTabId.current);
+      const nextChatId = failed ? undefined : await getOrCreateChatId(conversationId, activeTabId.current);
 
       if (!isActive || update !== latestUpdate) return;
+      setBindingFailed(failed);
+      if (failed) setScreen('chat');
       activeConversationId.current = conversationId;
 
       if (activeChatId.current !== nextChatId) {
@@ -309,12 +312,12 @@ export function PreviewPage(): ReactNode {
     };
 
     const handleMessage = (
-      message: { type?: string; conversationId?: string | null },
+      message: { type?: string; conversationId?: string | null; bindingFailed?: boolean },
       sender: chrome.runtime.MessageSender,
     ): void => {
       if (message.type === 'eveil:conversation-change' && activeTabId.current !== undefined &&
         sender.tab?.id === activeTabId.current) {
-        void updateChat(message.conversationId ?? null);
+        void updateChat(message.conversationId ?? null, message.bindingFailed === true);
       }
     };
 
@@ -332,6 +335,7 @@ export function PreviewPage(): ReactNode {
       activeTabId.current = tabId;
       const initialUpdate = ++latestUpdate;
       let conversationId: string | null = null;
+      let failed = false;
 
       if (activeTabId.current !== undefined) {
         try {
@@ -340,13 +344,14 @@ export function PreviewPage(): ReactNode {
           }, { frameId: 0 });
           if (result?.pendingBinding === true) return;
           conversationId = result?.conversationId ?? null;
+          failed = result?.bindingFailed === true;
         } catch {
           conversationId = null;
         }
       }
 
       if (initialUpdate === latestUpdate) {
-        await updateChat(conversationId);
+        await updateChat(conversationId, failed);
       }
     }).catch(() => updateChat(null));
 
@@ -957,6 +962,15 @@ export function PreviewPage(): ReactNode {
       setPosting(false);
     }
   };
+
+  if (bindingFailed) {
+    return (
+      <Page>
+        <SendStatus role="alert">이 대화에 복원 정보를 연결하지 못했어요.</SendStatus>
+        {IS_EMBEDDED && <button type="button" onClick={() => closeEmbeddedPanel(true)}>닫기</button>}
+      </Page>
+    );
+  }
 
   if (globalThis.chrome?.storage) {
     if (!chatId || !registrationMode) return null;
