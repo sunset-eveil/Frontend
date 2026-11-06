@@ -32,7 +32,7 @@ export function requestComposerValue(): void {
   }
 }
 
-export function sendMaskedMessage(text: string): Promise<void> {
+export function sendMaskedMessage(text: string, conversationId: string | null): Promise<void> {
   if (!IS_EMBEDDED || !parentOrigin) {
     return Promise.reject(new Error('ChatGPT 페이지에서 Eveil을 열어 주세요.'));
   }
@@ -61,7 +61,7 @@ export function sendMaskedMessage(text: string): Promise<void> {
     };
 
     window.addEventListener('message', handleResult);
-    window.parent.postMessage({ type: 'eveil:send-masked', requestId, text }, parentOrigin);
+    window.parent.postMessage({ type: 'eveil:send-masked', requestId, text, conversationId }, parentOrigin);
   });
 }
 

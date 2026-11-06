@@ -1,6 +1,7 @@
 import type { MaskTypeId } from '../masking';
 import { getClientCredentials } from '../registration';
 import { getApiBaseUrl, getAuthHeaders } from './config';
+import { invalidateChatMappings } from './chat-mappings';
 
 type MaskingRequest = {
   text: string;
@@ -56,6 +57,7 @@ async function request(
   if (response.status !== 204) {
     throw new Error(await readError(response));
   }
+  invalidateChatMappings(chatId);
 }
 
 async function readError(response: Response): Promise<string> {

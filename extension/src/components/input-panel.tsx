@@ -25,6 +25,8 @@ type InputPanelProps = {
   onCaretChange: (caret: { start: number; end: number }) => void;
   onClose: () => void;
   onExpand: () => void;
+  onRestoreResponse: () => void;
+  canRestoreResponse: boolean;
   onSettings: (anchor: DOMRect) => void;
   onSend?: () => void;
   isSending?: boolean;
@@ -185,6 +187,8 @@ export function InputPanel({
   onCaretChange,
   onClose,
   onExpand,
+  onRestoreResponse,
+  canRestoreResponse,
   onSettings,
   onSend,
   isSending = false,
@@ -243,6 +247,9 @@ export function InputPanel({
           onClick={(event) => onSettings(event.currentTarget.getBoundingClientRect())}
         />
         <IconButton icon="expand" label="비교 화면 열기" onClick={onExpand} />
+        <SendButton type="button" disabled={!canRestoreResponse} onClick={onRestoreResponse}>
+          답변 복원
+        </SendButton>
         <SendButton
           type="button"
           variant="filled"

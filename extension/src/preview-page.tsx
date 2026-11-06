@@ -10,6 +10,7 @@ import { InputPanel } from "./components/input-panel";
 import { MaskTypeItem } from "./components/mask-type-item";
 import { MaskTypeModal } from "./components/mask-type-modal";
 import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
+import { ResponseRestoreDialog } from "./components/response-restore-dialog";
 import {
   MASK_DEFINITIONS,
   type ManualMask,
@@ -18,7 +19,7 @@ import {
 } from "./masking";
 import { COLORS } from "./styles/colors";
 import { getOrCreateChatId } from './chat-id';
-import { getChatMappings, type ChatMapping } from './api/chat-mappings';
+import { getCachedChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
   createMasking,
   deleteMapping,
@@ -88,8 +89,10 @@ function countOccurrences(text: string, query: string): number {
 
 export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
+  const [isRestoreOpen, setRestoreOpen] = useState(false);
   const activeChatId = useRef<string | undefined>(undefined);
   const activeTabId = useRef<number | undefined>(undefined);
+  const activeConversationId = useRef<string | null>(null);
   const [maskedValue, setMaskedValue] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>(IS_EMBEDDED ? "chat" : "button");
   const [filterAnchor, setFilterAnchor] = useState<DOMRect | null>(null);
@@ -130,7 +133,10 @@ export function PreviewPage(): ReactNode {
         typeof data.message === 'string') {
         setSendStatus({ message: data.message, isError: true });
       }
-      if (data.type === 'eveil:panel-hidden') setFilterAnchor(null);
+      if (data.type === 'eveil:panel-hidden') {
+        setFilterAnchor(null);
+        setRestoreOpen(false);
+      }
       if (data.type === 'eveil:draft-transferred') {
         latestValue.current = '';
         setValue('');
@@ -166,28 +172,31 @@ export function PreviewPage(): ReactNode {
   const skipNextRemasking = useRef(false);
 
   useEffect(() => {
-    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(screen);
-  }, [screen]);
+    if (IS_EMBEDDED && screen !== 'button') notifyEmbeddedMode(isRestoreOpen ? 'comparison' : screen);
+  }, [screen, isRestoreOpen]);
 
   const [mappingResult, setMappingResult] = useState<{ chatId: string; mappings: ChatMapping[] }>();
   const [isFetchingMappings, setFetchingMappings] = useState(false);
   const pendingMappingRequests = useRef<PendingMappingRequest[]>([]);
   const pendingFlush = useRef<Promise<void> | undefined>(undefined);
   const syncResponseMappings = async (
-    requestedChatId: string,
+    conversationId: string | null,
     mappings: ChatMapping[],
-  ): Promise<void> => {
+    submission?: { text: string; chatId: string },
+  ): Promise<boolean> => {
     const tabId = activeTabId.current;
-    if (tabId === undefined || !globalThis.chrome?.tabs) return;
+    if (tabId === undefined || !globalThis.chrome?.tabs) return false;
 
     try {
-      await chrome.tabs.sendMessage(tabId, {
+      const result = await chrome.tabs.sendMessage(tabId, {
         type: 'eveil:set-response-mappings',
-        chatId: requestedChatId,
+        conversationId,
         mappings,
-      });
+        submission,
+      }, { frameId: 0 });
+      return result?.updated === true;
     } catch {
-      // The preview can also run outside a ChatGPT tab.
+      return false;
     }
   };
   const flushPendingMappingRequests = async (requestedChatId: string): Promise<void> => {
@@ -219,13 +228,14 @@ export function PreviewPage(): ReactNode {
     }
   };
   const loadMappings = async (requestedChatId: string, flushPending = true): Promise<ChatMapping[]> => {
+    const conversationId = activeConversationId.current;
     setFetchingMappings(true);
     try {
       if (flushPending) await flushPendingMappingRequests(requestedChatId);
-      const mappings = await getChatMappings(requestedChatId);
+      const mappings = await getCachedChatMappings(requestedChatId);
       if (activeChatId.current === requestedChatId) {
         setMappingResult({ chatId: requestedChatId, mappings });
-        await syncResponseMappings(requestedChatId, mappings);
+        await syncResponseMappings(conversationId, mappings);
       }
       return mappings;
     } finally {
@@ -262,7 +272,11 @@ export function PreviewPage(): ReactNode {
       const update = ++latestUpdate;
       const nextChatId = await getOrCreateChatId(conversationId, activeTabId.current);
 
-      if (isActive && update === latestUpdate && activeChatId.current !== nextChatId) {
+      if (!isActive || update !== latestUpdate) return;
+      activeConversationId.current = conversationId;
+
+      if (activeChatId.current !== nextChatId) {
+        setRestoreOpen(false);
         if (activeChatId.current) {
           setValue('');
           setMaskedValue(null);
@@ -277,15 +291,18 @@ export function PreviewPage(): ReactNode {
 
         activeChatId.current = nextChatId;
         setChatId(nextChatId);
-        void loadMappings(nextChatId).catch(() => undefined);
       }
+
+      // Restore the mappings for the conversation even if the first send reused its ID.
+      void loadMappings(nextChatId, false).catch(() => undefined);
     };
 
     const handleMessage = (
       message: { type?: string; conversationId?: string | null },
       sender: chrome.runtime.MessageSender,
     ): void => {
-      if (message.type === 'eveil:conversation-change' && sender.tab?.id === activeTabId.current) {
+      if (message.type === 'eveil:conversation-change' && activeTabId.current !== undefined &&
+        sender.tab?.id === activeTabId.current) {
         void updateChat(message.conversationId ?? null);
       }
     };
@@ -296,8 +313,12 @@ export function PreviewPage(): ReactNode {
     }
 
     chrome.runtime.onMessage.addListener(handleMessage);
-    void chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
-      activeTabId.current = tab?.id;
+    const hostTab = IS_EMBEDDED
+      ? chrome.runtime.sendMessage({ type: 'eveil:get-host-tab' }).then((result) => result?.tabId as number | undefined)
+      : chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => tab?.id);
+    void hostTab.then(async (tabId) => {
+      if (!isActive) return;
+      activeTabId.current = tabId;
       const initialUpdate = ++latestUpdate;
       let conversationId: string | null = null;
 
@@ -305,7 +326,7 @@ export function PreviewPage(): ReactNode {
         try {
           const result = await chrome.tabs.sendMessage(activeTabId.current, {
             type: 'eveil:get-conversation',
-          });
+          }, { frameId: 0 });
           conversationId = result?.conversationId ?? null;
         } catch {
           conversationId = null;
@@ -806,6 +827,7 @@ export function PreviewPage(): ReactNode {
     setPosting(true);
     const sourceText = latestValue.current;
     const sourceChatId = chatId;
+    const sourceConversationId = activeConversationId.current;
     const sourceEnabled = enabled;
     const sourceManualMasks = manualMasks;
 
@@ -822,14 +844,23 @@ export function PreviewPage(): ReactNode {
         ? pendingMappings ?? mappingResult?.mappings
         : await maskForPreview(sourceText);
       skipNextRemasking.current = false;
-      if (!mappings) return;
+      if (!mappings || !sourceChatId) return;
       if (activeChatId.current !== sourceChatId || latestValue.current !== sourceText ||
         latestEnabled.current !== sourceEnabled || latestManualMasks.current !== sourceManualMasks) {
         throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
       }
-
       const sendManualMasks = resolveManualMasks(sourceManualMasks, mappings);
-      await sendMaskedMessage(toMaskedText(mappings, sourceText, sendManualMasks));
+      const maskedText = toMaskedText(mappings, sourceText, sendManualMasks);
+      const synced = await syncResponseMappings(sourceConversationId, mappings, {
+        text: maskedText,
+        chatId: sourceChatId,
+      });
+      if (IS_EMBEDDED && !synced) throw new Error('답변 복원용 매핑을 준비하지 못했습니다. 다시 시도해 주세요.');
+      if (activeChatId.current !== sourceChatId || latestValue.current !== sourceText ||
+        latestEnabled.current !== sourceEnabled || latestManualMasks.current !== sourceManualMasks) {
+        throw new Error('대화나 가림 설정이 바뀌어 전송을 중단했습니다.');
+      }
+      await sendMaskedMessage(maskedText, sourceConversationId);
       setValue('');
       setCaret({ start: 0, end: 0 });
       setMaskedValue(null);
@@ -881,11 +912,19 @@ export function PreviewPage(): ReactNode {
                 else setScreen('button');
               }}
               onExpand={openComparison}
+              onRestoreResponse={() => {
+                setFilterAnchor(null);
+                setRestoreOpen(true);
+              }}
+              canRestoreResponse={Boolean(chatId) && !isSending}
               onSettings={setFilterAnchor}
               onSend={sendToChatGpt}
               isSending={isSending}
             />
           )}
+      {screen === "chat" && isRestoreOpen && chatId && (
+        <ResponseRestoreDialog key={chatId} chatId={chatId} onClose={() => setRestoreOpen(false)} />
+      )}
           {screen === "chat" && sendStatus?.isError && (
             <SendStatus
               role={sendStatus.isError ? "alert" : "status"}
