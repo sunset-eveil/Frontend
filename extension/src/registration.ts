@@ -1,4 +1,4 @@
-import { registerClient, verifyClient } from './api/clients';
+import { ClientVerificationError, registerClient, verifyClient } from './api/clients';
 import { LEGACY_CHAT_IDS_KEY } from './chat-id';
 
 export type RegistrationMode = 'register' | 'unlock' | 'ready' | 'error';
@@ -18,6 +18,8 @@ export class RegistrationError extends Error {
 }
 
 const LOCAL_KEY = 'eveilRegistration';
+const BROWSER_PASSPHRASE_KEY = 'eveilBrowserPassphrase';
+const BROWSER_UNLOCK_LOCK = 'eveil-browser-unlock';
 const chatRegistrationKey = (chatId: string): string => `${LOCAL_KEY}:${chatId}`;
 const chatSessionKey = (chatId: string): string => `eveilCredentials:${chatId}`;
 const ENCODER = new TextEncoder();
@@ -68,23 +70,31 @@ export async function getClientCredentials(chatId: string): Promise<ChatCredenti
 
 export async function getRegistrationMode(chatId: string): Promise<RegistrationMode> {
   const data = await getLocalData(chatId);
-
-  if (!data.isRegistered) {
-    return 'register';
-  }
-
   try {
     await getClientCredentials(chatId);
     return 'ready';
   } catch (error) {
-    if (error instanceof RegistrationError) return 'unlock';
+    if (!(error instanceof RegistrationError)) throw error;
+  }
+
+  const session = await chrome.storage.session.get(BROWSER_PASSPHRASE_KEY);
+  const passphrase = session[BROWSER_PASSPHRASE_KEY];
+  if (typeof passphrase !== 'string') return data.isRegistered ? 'unlock' : 'register';
+
+  try {
+    await prepareChatCredentials(chatId, passphrase, true);
+    return 'ready';
+  } catch (error) {
+    // Older chats can have been created with a different passphrase.
+    if (error instanceof ClientVerificationError) return 'unlock';
     throw error;
   }
 }
 
 export function onChatCredentialsChanged(chatId: string, callback: () => void): () => void {
   const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string): void => {
-    if (area === 'session' && chatSessionKey(chatId) in changes) callback();
+    if (area === 'session' &&
+      (chatSessionKey(chatId) in changes || BROWSER_PASSPHRASE_KEY in changes)) callback();
   };
   chrome.storage.onChanged.addListener(listener);
   return () => chrome.storage.onChanged.removeListener(listener);
@@ -141,15 +151,35 @@ async function deriveKeys(
 export async function submitPassphrase(
   chatId: string,
   passphrase: string,
-  mode: 'register' | 'unlock',
 ): Promise<void> {
   if (!passphrase.trim()) {
     throw new RegistrationError('패스프레이즈를 입력해 주세요.');
   }
 
+  await navigator.locks.request(BROWSER_UNLOCK_LOCK, async () => {
+    const session = await chrome.storage.session.get(BROWSER_PASSPHRASE_KEY);
+    const saved = session[BROWSER_PASSPHRASE_KEY];
+    const data = await getLocalData(chatId);
+    const useSaved = typeof saved === 'string' && !data.isRegistered && !data.clientId;
+    await prepareChatCredentials(chatId, useSaved ? saved : passphrase, useSaved);
+    if (typeof saved !== 'string') {
+      await chrome.storage.session.set({ [BROWSER_PASSPHRASE_KEY]: passphrase });
+    }
+  });
+}
+
+async function prepareChatCredentials(chatId: string, passphrase: string, reuseUnlocked: boolean): Promise<void> {
   await navigator.locks.request(chatRegistrationKey(chatId), async () => {
+    if (reuseUnlocked) {
+      try {
+        await getClientCredentials(chatId);
+        return;
+      } catch (error) {
+        if (!(error instanceof RegistrationError)) throw error;
+      }
+    }
     const stored = await getLocalData(chatId);
-    if ((mode === 'unlock' || stored.isRegistered) && (!stored.salt || !stored.clientId || !stored.isRegistered)) {
+    if (stored.isRegistered && (!stored.salt || !stored.clientId)) {
       throw new RegistrationError('등록 정보를 찾을 수 없습니다.');
     }
 

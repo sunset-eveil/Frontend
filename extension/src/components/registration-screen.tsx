@@ -81,7 +81,7 @@ export function RegistrationScreen({ chatId, mode, onComplete }: RegistrationScr
     setError('');
 
     try {
-      await submitPassphrase(chatId, passphrase, mode);
+      await submitPassphrase(chatId, passphrase);
       setPassphrase('');
       onComplete();
     } catch (cause) {
@@ -96,8 +96,8 @@ export function RegistrationScreen({ chatId, mode, onComplete }: RegistrationScr
       <Title>{isRegister ? 'Eveil 시작하기' : 'Eveil 잠금 해제'}</Title>
       <Description>
         {isRegister
-          ? '이 대화에 사용할 패스프레이즈를 설정하세요.'
-          : '이 대화에 설정한 패스프레이즈를 입력하세요.'}
+          ? '이 브라우저 세션에서 사용할 패스프레이즈를 입력하세요.'
+          : '패스프레이즈를 입력해 Eveil을 잠금 해제하세요.'}
       </Description>
       {mode === 'error' ? (
         <ErrorMessage role="alert">등록 상태를 읽지 못했습니다. 확장 프로그램을 다시 열어 주세요.</ErrorMessage>

@@ -1,10 +1,12 @@
-import { getApiBaseUrl, getAuthHeaders } from './config';
+import { getApiBaseUrl, getAuthHeaders, isMappingNotFound } from './config';
 
 type RegisterClientRequest = {
   clientId: string;
   authKey: string;
   kek: string;
 };
+
+export class ClientVerificationError extends Error {}
 
 export async function registerClient(body: RegisterClientRequest): Promise<'created' | 'existing'> {
   const response = await fetch(`${getApiBaseUrl()}/api/clients`, {
@@ -29,7 +31,9 @@ export async function verifyClient(chatId: string, credentials: RegisterClientRe
     cache: 'no-store',
   });
   // An authenticated chat without saved mappings returns 404.
-  if (response.ok || response.status === 404) return;
-  if (response.status === 401) throw new Error('패스프레이즈가 일치하지 않거나 서버에 등록된 클라이언트가 없어요.');
+  if (response.ok || await isMappingNotFound(response)) return;
+  if (response.status === 401) {
+    throw new ClientVerificationError('패스프레이즈가 일치하지 않거나 서버에 등록된 클라이언트가 없어요.');
+  }
   throw new Error(`클라이언트 인증을 확인하지 못했어요. (HTTP ${response.status})`);
 }
