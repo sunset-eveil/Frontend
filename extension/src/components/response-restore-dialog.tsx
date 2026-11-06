@@ -74,12 +74,13 @@ function restoreText(text: string, mappings: ChatMapping[]) {
     .map(({ maskCode, value }) => [maskCode, value]));
   const codes = [...values.keys()].sort((a, b) => b.length - a.length)
     .map((code) => code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const alternatives = [...codes, `(?:${tokenTypes})[1-9][0-9]*`].join("|");
-  const pattern = new RegExp(`(?<![A-Za-z0-9_])(?:${alternatives})(?![A-Za-z0-9_])`, "g");
+  const alternatives = [...codes, `(?:${tokenTypes})[_-]?[1-9][0-9]*`].join("|");
+  const pattern = new RegExp(`(?<![A-Za-z0-9_])(?:${alternatives})(?![A-Za-z0-9_])`, "gi");
   const matched = new Set<string>();
   const missing = new Set<string>();
   const restored = text.replace(pattern, (code) => {
-    const value = values.get(code);
+    const canonical = code.toUpperCase().replace(/[_-](?=[1-9][0-9]*$)/, "");
+    const value = values.get(code) ?? values.get(canonical);
     if (value !== undefined) {
       matched.add(code);
       return value;

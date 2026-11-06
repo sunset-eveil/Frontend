@@ -56,7 +56,7 @@
 
   const control = document.createElement('span');
   control.id = CONTROL_ID;
-  control.style.cssText = 'all:initial!important;position:fixed!important;top:12px!important;left:50%!important;transform:translateX(-50%)!important;z-index:2147482999!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:74px!important;height:36px!important;min-height:36px!important;overflow:visible!important;line-height:0!important;box-sizing:border-box!important;';
+  control.style.cssText = 'all:initial!important;position:fixed!important;z-index:2147482999!important;display:none!important;align-items:center!important;justify-content:center!important;width:74px!important;height:36px!important;min-height:36px!important;overflow:visible!important;line-height:0!important;box-sizing:border-box!important;';
   const controlShadow = control.attachShadow({ mode: 'open' });
   controlShadow.innerHTML = `
     <style>
@@ -84,7 +84,7 @@
       .composer-cover { position: absolute; background: #212121; pointer-events: auto; }
       iframe { position: absolute; z-index: 1; display: block; border: 0; border-radius: 20px; background: transparent;
         pointer-events: auto; color-scheme: dark; }
-      .hint { position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+      .hint { position: absolute;
         box-sizing: border-box; width: min(262px, calc(100% - 24px)); padding: 13px 14px;
         border: 1px solid #9184d9; border-radius: 12px; background: #242432; color: #eceaf5;
         box-shadow: 0 6px 18px #0006; font: 14px/1.6 system-ui, sans-serif; pointer-events: auto; }
@@ -92,9 +92,9 @@
       .hint div { display: flex; justify-content: flex-end; }
       .hint button { border: 1px solid #9184d9; border-radius: 8px; padding: 5px 12px;
         background: transparent; color: inherit; cursor: pointer; font: inherit; }
-      .hint::after { content: ''; position: absolute; left: 50%; top: -7px; width: 12px; height: 12px;
-        border-left: 1px solid #9184d9; border-top: 1px solid #9184d9; background: #242432;
-        transform: translateX(-50%) rotate(45deg); }
+      .hint::after { content: ''; position: absolute; right: 24px; bottom: -7px; width: 12px; height: 12px;
+        border-right: 1px solid #9184d9; border-bottom: 1px solid #9184d9; background: #242432;
+        transform: rotate(45deg); }
     </style>
     <div class="backdrop" hidden aria-hidden="true"></div>
     <div class="composer-cover" hidden aria-hidden="true"></div>
@@ -283,6 +283,10 @@
 
   function setOpen(nextOpen: boolean, shouldTransferDraft = true): void {
     if (!hasContext() || !control.isConnected) return;
+    if (nextOpen && location.pathname !== lastPathname) {
+      notifyConversationChange();
+      if (location.pathname !== lastPathname) return;
+    }
     if (!nextOpen && isOpen && shouldTransferDraft) {
       void insertComposerText(draft).then(() => {
         draft = '';
@@ -368,14 +372,33 @@
     const bounds = composer?.getBoundingClientRect();
     const panelVisible = isOpen && Boolean(bounds?.width && bounds.height);
     trigger.setAttribute('aria-expanded', String(panelVisible));
-    control.style.setProperty('display', panelVisible ? 'none' : 'inline-flex', 'important');
-    hint.hidden = hintDismissed || isOpen;
-    if (!bounds?.width || !bounds.height) {
+    control.style.setProperty('display', !isOpen && bounds?.width && bounds.height ? 'inline-flex' : 'none', 'important');
+    hint.hidden = hintDismissed || isOpen || !bounds?.width || !bounds.height;
+    if (!composer || !bounds?.width || !bounds.height) {
       backdrop.hidden = true;
       composerCover.hidden = true;
       if (frame) frame.hidden = true;
       if (allowRetry) requestAnimationFrame(() => updatePosition(false));
       return;
+    }
+    const actions = Array.from(composer.querySelectorAll<HTMLElement>(
+      '[data-testid="model-switcher-dropdown-button"], button, [role="button"]',
+    )).filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    const anchor = actions.find((element) => element.dataset.testid === 'model-switcher-dropdown-button' ||
+      /^(Instant|Auto|Thinking|Pro)\b/i.test(element.textContent?.trim() ?? '')) ??
+      actions.find((element) => element.matches(
+        '#composer-submit-button, [data-testid="send-button"], [data-testid="stop-button"], [data-testid="composer-speech-button"]',
+      ));
+    const triggerLeft = Math.max(bounds.left + 8, anchor ? anchor.getBoundingClientRect().left - 82 : bounds.right - 264);
+    const triggerTop = Math.max(8, bounds.top + (bounds.height - 36) / 2);
+    control.style.setProperty('left', `${triggerLeft}px`, 'important');
+    control.style.setProperty('top', `${triggerTop}px`, 'important');
+    if (!hint.hidden) {
+      hint.style.left = `${Math.max(12, Math.min(triggerLeft + 74 - 262, window.innerWidth - 274))}px`;
+      hint.style.top = `${Math.max(12, triggerTop - hint.getBoundingClientRect().height - 12)}px`;
     }
     const width = isExpanded
       ? window.innerWidth
@@ -498,36 +521,41 @@
     const conversationId = getConversationId();
     let sentMappings: ChatMapping[] | undefined;
     if (firstMessage && location.pathname !== firstMessage.originPathname) {
+      if (isOpen) setOpen(false, false);
       if (conversationId && (!firstMessage.conversationId ||
         firstMessage.conversationId === conversationId)) {
         firstMessage.conversationId = conversationId;
         const userMessages = document.querySelectorAll<HTMLElement>(USER_MESSAGE);
         // Wait for ChatGPT to render the first turn before assigning its mappings.
         if (!userMessages.length) return;
-        const normalize = (value: string): string => value.replace(/\s+/g, ' ').trim();
+        const normalize = (value: string): string => value
+          .replace(/[\u200b\ufeff]/g, '').replace(/\s+/g, ' ').trim();
         const submitted = normalize(firstMessage.text);
-        if (Array.from(userMessages).every((message) => normalize(message.innerText) === submitted)) {
-          const candidate = firstMessage;
-          if (candidate.binding === 'pending') return;
-          if (!candidate.binding) {
-            candidate.binding = 'pending';
-            runExtensionTask(async () => {
-              try {
-                const result = await chrome.runtime.sendMessage({
-                  type: 'eveil:bind-first-message',
-                  conversationId,
-                  chatId: candidate.chatId,
-                });
-                candidate.binding = result?.saved === true ? 'saved' : 'failed';
-              } catch {
-                candidate.binding = 'failed';
-              }
-              scheduleLayout();
-            });
-            return;
-          }
-          if (candidate.binding === 'saved') sentMappings = candidate.mappings;
+        const matches = (message: HTMLElement): boolean => {
+          const body = message.querySelector<HTMLElement>('.whitespace-pre-wrap') ?? message;
+          return normalize(body.innerText) === submitted || normalize(body.textContent ?? '') === submitted;
+        };
+        if (!Array.from(userMessages).every(matches)) return;
+        const candidate = firstMessage;
+        if (candidate.binding === 'pending') return;
+        if (!candidate.binding) {
+          candidate.binding = 'pending';
+          runExtensionTask(async () => {
+            try {
+              const result = await chrome.runtime.sendMessage({
+                type: 'eveil:bind-first-message',
+                conversationId,
+                chatId: candidate.chatId,
+              });
+              candidate.binding = result?.saved === true ? 'saved' : 'failed';
+            } catch {
+              candidate.binding = 'failed';
+            }
+            scheduleLayout();
+          });
+          return;
         }
+        if (candidate.binding === 'saved') sentMappings = candidate.mappings;
       }
       clearFirstMessage();
     }
