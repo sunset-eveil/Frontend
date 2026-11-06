@@ -1,5 +1,5 @@
 import { decryptMappings, type ChatMapping, type EncryptedMappings } from '../mapping-crypto';
-import { getClientCredentials } from '../registration';
+import { getClientCredentials, rejectChatCredentials } from '../registration';
 import { getApiBaseUrl, getAuthHeaders } from './config';
 
 export type { ChatMapping } from '../mapping-crypto';
@@ -67,7 +67,7 @@ export async function getRestoreChatMappings(chatId: string): Promise<{ mappings
 }
 
 export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
-  const credentials = await getClientCredentials();
+  const credentials = await getClientCredentials(chatId);
   const baseUrl = getApiBaseUrl();
   let response: Response;
 
@@ -85,7 +85,8 @@ export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
   }
 
   if (response.status === 401) {
-    throw new Error('클라이언트 인증에 실패했습니다.');
+    await rejectChatCredentials(chatId, credentials.authKey);
+    throw new Error('이 대화의 클라이언트 인증에 실패했습니다. (HTTP 401)');
   }
 
   if (response.status === 429 || response.status >= 500) {

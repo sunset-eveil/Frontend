@@ -1,5 +1,5 @@
 import type { MaskTypeId } from '../masking';
-import { getClientCredentials } from '../registration';
+import { getClientCredentials, rejectChatCredentials } from '../registration';
 import { getApiBaseUrl, getAuthHeaders } from './config';
 import { invalidateChatMappings } from './chat-mappings';
 
@@ -33,7 +33,7 @@ async function request(
   resource: string,
   body?: unknown,
 ): Promise<void> {
-  const credentials = await getClientCredentials();
+  const credentials = await getClientCredentials(chatId);
   const baseUrl = getApiBaseUrl();
 
   let response: Response;
@@ -55,6 +55,7 @@ async function request(
   }
 
   if (response.status !== 204) {
+    if (response.status === 401) await rejectChatCredentials(chatId, credentials.authKey);
     throw new Error(await readError(response));
   }
   invalidateChatMappings(chatId);

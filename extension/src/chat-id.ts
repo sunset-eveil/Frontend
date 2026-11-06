@@ -1,6 +1,7 @@
 const CHAT_IDS_KEY = 'eveilChatIds';
 const PENDING_IDS_KEY = 'eveilPendingChatIds';
 const CHAT_ID_STORAGE_LOCK = 'eveil-chat-id-storage';
+export const LEGACY_CHAT_IDS_KEY = 'eveilLegacyChatIds';
 
 export async function findChatId(conversationId: string): Promise<string | undefined> {
   const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
@@ -50,8 +51,12 @@ export async function getOrCreateChatId(
 }
 
 async function resolveStoredChatId(conversationId: string | null, tabId?: number): Promise<string> {
-  const stored = await chrome.storage.local.get(CHAT_IDS_KEY);
+  const stored = await chrome.storage.local.get([CHAT_IDS_KEY, LEGACY_CHAT_IDS_KEY]);
   const chatIds = (stored[CHAT_IDS_KEY] ?? {}) as Record<string, string>;
+  if (stored[LEGACY_CHAT_IDS_KEY] === undefined) {
+    // Only chats already known before per-chat registration can use the old client.
+    await chrome.storage.local.set({ [LEGACY_CHAT_IDS_KEY]: Object.values(chatIds) });
+  }
   const pending = await chrome.storage.session.get(PENDING_IDS_KEY);
   const pendingIds = (pending[PENDING_IDS_KEY] ?? {}) as Record<string, string>;
   const tabKey = String(tabId ?? 'popup');

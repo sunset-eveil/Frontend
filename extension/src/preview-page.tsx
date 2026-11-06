@@ -11,6 +11,8 @@ import { MaskTypeItem } from "./components/mask-type-item";
 import { MaskTypeModal } from "./components/mask-type-modal";
 import { MaskChip, PrivacyHighlight } from "./components/privacy-text";
 import { ResponseRestoreDialog } from "./components/response-restore-dialog";
+import { RegistrationScreen } from "./components/registration-screen";
+import { getRegistrationMode, onChatCredentialsChanged, type RegistrationMode } from "./registration";
 import {
   MASK_DEFINITIONS,
   type ManualMask,
@@ -18,7 +20,7 @@ import {
   type MaskTypeId,
 } from "./masking";
 import { getOrCreateChatId } from './chat-id';
-import { getCachedChatMappings, getRestoreChatMappings, type ChatMapping } from './api/chat-mappings';
+import { getCachedChatMappings, getRestoreChatMappings, invalidateChatMappings, type ChatMapping } from './api/chat-mappings';
 import {
   createMasking,
   deleteMapping,
@@ -90,6 +92,8 @@ function countOccurrences(text: string, query: string): number {
 
 export function PreviewPage(): ReactNode {
   const [chatId, setChatId] = useState<string>();
+  const [registration, setRegistration] = useState<{ chatId: string; mode: RegistrationMode }>();
+  const registrationMode = registration?.chatId === chatId ? registration?.mode : undefined;
   const [restoreData, setRestoreData] = useState<Awaited<ReturnType<typeof getRestoreChatMappings>>>();
   const [isLoadingRestore, setLoadingRestore] = useState(false);
   const restoreRequest = useRef<symbol | undefined>(undefined);
@@ -302,8 +306,6 @@ export function PreviewPage(): ReactNode {
         setChatId(nextChatId);
       }
 
-      // Restore the mappings for the conversation even if the first send reused its ID.
-      void loadMappings(nextChatId, false).catch(() => undefined);
     };
 
     const handleMessage = (
@@ -354,6 +356,36 @@ export function PreviewPage(): ReactNode {
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
   }, []);
+
+  useEffect(() => {
+    if (!chatId || !globalThis.chrome?.storage) return;
+    let active = true;
+    let revision = 0;
+    const checkRegistration = (): void => {
+      const check = ++revision;
+      const applyMode = (mode: RegistrationMode): void => {
+        if (active && revision === check) setRegistration({ chatId, mode });
+      };
+      void getRegistrationMode(chatId).then(applyMode, () => applyMode('error'));
+    };
+    const unsubscribe = onChatCredentialsChanged(chatId, () => {
+      invalidateChatMappings(chatId);
+      closeRestore();
+      setMappingResult(undefined);
+      checkRegistration();
+    });
+    checkRegistration();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [chatId]);
+
+  useEffect(() => {
+    if (chatId && registrationMode === 'ready') {
+      void loadMappings(chatId, false).catch(() => undefined);
+    }
+  }, [chatId, registrationMode]);
 
   useEffect(() => {
     if (isHintVisible) {
@@ -925,6 +957,22 @@ export function PreviewPage(): ReactNode {
       setPosting(false);
     }
   };
+
+  if (globalThis.chrome?.storage) {
+    if (!chatId || !registrationMode) return null;
+    if (registrationMode !== 'ready') {
+      return (
+        <RegistrationScreen
+          key={chatId}
+          chatId={chatId}
+          mode={registrationMode}
+          onComplete={() => {
+            if (activeChatId.current === chatId) setRegistration({ chatId, mode: 'ready' });
+          }}
+        />
+      );
+    }
+  }
 
   return (
     <Page>

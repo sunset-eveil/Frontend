@@ -5,6 +5,7 @@ import { COLORS } from '../styles/colors';
 import { Button } from './button';
 
 type RegistrationScreenProps = {
+  chatId: string;
   mode: Exclude<RegistrationMode, 'ready'>;
   onComplete: () => void;
 };
@@ -63,7 +64,7 @@ const ErrorMessage = styled.p`
   line-height: 1.5;
 `;
 
-export function RegistrationScreen({ mode, onComplete }: RegistrationScreenProps): ReactElement {
+export function RegistrationScreen({ chatId, mode, onComplete }: RegistrationScreenProps): ReactElement {
   const [passphrase, setPassphrase] = useState('');
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState('');
@@ -80,7 +81,7 @@ export function RegistrationScreen({ mode, onComplete }: RegistrationScreenProps
     setError('');
 
     try {
-      await submitPassphrase(passphrase, mode);
+      await submitPassphrase(chatId, passphrase, mode);
       setPassphrase('');
       onComplete();
     } catch (cause) {
@@ -95,8 +96,8 @@ export function RegistrationScreen({ mode, onComplete }: RegistrationScreenProps
       <Title>{isRegister ? 'Eveil 시작하기' : 'Eveil 잠금 해제'}</Title>
       <Description>
         {isRegister
-          ? '패스프레이즈를 입력해 클라이언트를 등록하세요.'
-          : '패스프레이즈를 입력해 이번 세션의 키를 다시 생성하세요.'}
+          ? '이 대화에 사용할 패스프레이즈를 설정하세요.'
+          : '이 대화에 설정한 패스프레이즈를 입력하세요.'}
       </Description>
       {mode === 'error' ? (
         <ErrorMessage role="alert">등록 상태를 읽지 못했습니다. 확장 프로그램을 다시 열어 주세요.</ErrorMessage>
