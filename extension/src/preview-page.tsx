@@ -743,15 +743,61 @@ export function PreviewPage(): ReactNode {
     };
   });
 
+  const updateManualMasksForTextChange = (
+    masks: ManualMask[],
+    previousText: string,
+    nextText: string,
+  ): ManualMask[] => {
+    let changeStart = 0;
+    while (
+      changeStart < previousText.length &&
+      changeStart < nextText.length &&
+      previousText[changeStart] === nextText[changeStart]
+    ) {
+      changeStart += 1;
+    }
+
+    let previousChangeEnd = previousText.length;
+    let nextChangeEnd = nextText.length;
+    while (
+      previousChangeEnd > changeStart &&
+      nextChangeEnd > changeStart &&
+      previousText[previousChangeEnd - 1] === nextText[nextChangeEnd - 1]
+    ) {
+      previousChangeEnd -= 1;
+      nextChangeEnd -= 1;
+    }
+
+    const offset = nextChangeEnd - previousChangeEnd;
+    return masks.flatMap((mask) => {
+      // Keep masks before the edit, and move masks after it with the edit.
+      if (mask.end <= changeStart) return [mask];
+      if (mask.start >= previousChangeEnd) {
+        return [{ ...mask, start: mask.start + offset, end: mask.end + offset }];
+      }
+
+      // An edit touching a masked value makes its stored range ambiguous.
+      return [];
+    });
+  };
+
   const handleInputChange = (nextValue: string): void => {
     if (nextValue === value) return;
+    const previousValue = value;
     latestValue.current = nextValue;
     setValue(nextValue);
     syncEmbeddedDraft(nextValue);
-    setManualMasks([]);
+    setManualMasks((previous) => updateManualMasksForTextChange(
+      previous,
+      previousValue,
+      nextValue,
+    ));
     skipNextRemasking.current = false;
-    setMaskedValue(null);
-    setMappingResult(undefined);
+    // Mapping results belong to the conversation, not to one immutable input
+    // snapshot. Keep them available so existing masked values stay hidden while
+    // the user appends or edits surrounding text. Sending still remasks the
+    // latest value when needed.
+    setMaskedValue(nextValue);
   };
 
   const sendToChatGpt = async (): Promise<void> => {
