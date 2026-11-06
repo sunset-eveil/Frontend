@@ -58,6 +58,7 @@ async function request(
     if (response.status === 401) await rejectChatCredentials(chatId, credentials.authKey);
     throw new Error(await readError(response));
   }
+  if (method === 'POST') console.info('[Eveil] 마스킹 저장 성공', { clientId: credentials.clientId, chatId });
   invalidateChatMappings(chatId);
 }
 

@@ -1,6 +1,6 @@
 import { decryptMappings, type ChatMapping, type EncryptedMappings } from '../mapping-crypto';
 import { getClientCredentials, rejectChatCredentials } from '../registration';
-import { getApiBaseUrl, getAuthHeaders } from './config';
+import { getApiBaseUrl, getAuthHeaders, isMappingNotFound } from './config';
 
 export type { ChatMapping } from '../mapping-crypto';
 
@@ -81,7 +81,11 @@ export async function getChatMappings(chatId: string): Promise<ChatMapping[]> {
   }
 
   if (response.status === 404) {
-    return [];
+    if (await isMappingNotFound(response)) {
+      console.info('[Eveil] 저장된 매핑 없음', { clientId: credentials.clientId, chatId });
+      return [];
+    }
+    throw new Error('복원 API 경로를 찾지 못했습니다. 서버 주소를 확인해 주세요. (HTTP 404)');
   }
 
   if (response.status === 401) {

@@ -25,3 +25,10 @@ export function getAuthHeaders(
     ...(includeKek ? { 'X-Kek': kek } : {}),
   };
 }
+
+export async function isMappingNotFound(response: Response): Promise<boolean> {
+  if (response.status !== 404) return false;
+  const body: unknown = await response.json().catch(() => undefined);
+  return !!body && typeof body === 'object' && 'message' in body &&
+    body.message === '해당 대화의 매핑 정보가 없습니다.';
+}

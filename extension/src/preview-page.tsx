@@ -387,7 +387,7 @@ export function PreviewPage(): ReactNode {
   }, [chatId]);
 
   useEffect(() => {
-    if (chatId && registrationMode === 'ready') {
+    if (chatId && registrationMode === 'ready' && activeConversationId.current) {
       void loadMappings(chatId, false).catch(() => undefined);
     }
   }, [chatId, registrationMode]);
